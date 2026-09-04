@@ -36,3 +36,51 @@ def test_methodology_naming_a_missing_role_is_an_error(defs):
     del r["qa"]
     with pytest.raises(UnknownMethodology, match="qa"):
         roster_for("scrum", m, r)
+
+
+def test_activates_on_filter_excludes_roles_that_dont_activate(tmp_path):
+    """Prove the activates_on filter actually excludes roles that don't activate.
+
+    This test creates a synthetic definitions tree where a methodology names
+    multiple roles, but only some declare that methodology in their activates_on.
+    The filter must exclude those that don't activate, or this test fails.
+    """
+    # Create directories
+    roles_dir = tmp_path / "roles"
+    roles_dir.mkdir()
+    methodologies_dir = tmp_path / "methodologies"
+    methodologies_dir.mkdir()
+
+    # Create a role that activates on "test_method"
+    (roles_dir / "active.yaml").write_text(
+        "id: active\n"
+        "name: Active Role\n"
+        "brief: Activates on test_method.\n"
+        "contract: change_summary\n"
+        "activates_on: [test_method]\n"
+    )
+
+    # Create a role that does NOT activate on "test_method" (only on "scrum")
+    (roles_dir / "inactive.yaml").write_text(
+        "id: inactive\n"
+        "name: Inactive Role\n"
+        "brief: Does not activate on test_method.\n"
+        "contract: failing_test\n"
+        "activates_on: [scrum]\n"
+    )
+
+    # Create a methodology that names both roles
+    (methodologies_dir / "test_method.yaml").write_text(
+        "id: test_method\n"
+        "name: Test Method\n"
+        "phases: [testing]\n"
+        "roles: [active, inactive]\n"
+    )
+
+    m = load_methodologies(tmp_path)
+    r = load_roles(tmp_path)
+
+    # The roster should only contain "active", not "inactive"
+    roster = roster_for("test_method", m, r)
+    assert roster.role_ids() == ["active"]
+    assert "inactive" not in roster.role_ids()
