@@ -1,12 +1,10 @@
 # Governed Multi-Role Delivery for AI Coding Agents
 
-**Status:** Design — awaiting approval
+**Status:** Approved 2026-09-05 — implementation plan to follow
 **Date:** 2026-09-05
 **Supersedes:** the markdown-only `role-council` Claude Skill (this repo, as of 2026-08-28)
 
-> **Naming note:** this document uses `charter` / `.charter/` throughout as a working name.
-> It is a recommendation, not a decision — see §12. Renaming is a mechanical find-replace
-> before any code exists.
+> **Name:** `charter`. **Stack:** Python. Both decided 2026-09-05 — see §12.
 
 ---
 
@@ -328,13 +326,20 @@ parallel role sessions, review mode over historical repos.
 
 **The v1 bar is the loop, proven end to end.** Not breadth.
 
-## 12. Open decisions
+## 12. Decisions
 
-| # | Decision | Recommendation | Rationale |
+All locked 2026-09-05.
+
+| # | Decision | Outcome | Rationale |
 |---|---|---|---|
-| 1 | **Stack** | **Python** | Technically a coin flip for this workload — it calls APIs, validates schemas, runs git. Python wins on one toolchain (no committed `ncc` bundle), your build velocity, and coherence with SandScope / the orchestration platform / the RAG harness / jobagent. Costs ~5-10s of `setup-uv` on the Action. |
-| 2 | **Name** | **`charter`** | Means the founding document establishing roles, authority, and what a decision requires — literally what this is. Ties to SandScope's own 17-role delivery charter. PyPI available. Alternatives: `docket`, `rollcall` (both free). Note: `charter` is a common English word, so repo discoverability may favour a distinctive compound. |
+| 1 | **Stack** | **Python** | Technically a coin flip for this workload — it calls APIs, validates schemas, runs git. Python wins on one toolchain (no committed `ncc` bundle), build velocity, and coherence with SandScope / the orchestration platform / the RAG harness / jobagent. Costs ~5-10s of `setup-uv` on the Action. |
+| 2 | **Name** | **`charter`** | Means the founding document establishing roles, authority, and what a decision requires — literally what this is. Ties to SandScope's own 17-role delivery charter. PyPI name available. Rejected: `docket`, `rollcall` (both free but semantically lighter); `quorum`, `warrant`, `cadre`, `praxis` (taken). |
 | 3 | **v1 roster** | Developer, QA, AppSec | The three with the sharpest, most obviously checkable contracts. BA and Architect follow immediately after. |
+
+Consequences: package `charter` on PyPI, repo `224Sand/charter`, state directory `.charter/`,
+MCP tools namespaced `charter.*`, installed via `uvx charter`. The GitHub repo keeps the
+`role-council` name until the v1 release, at which point it is renamed (GitHub redirects the
+old URL, so nothing breaks).
 
 ## 13. Risks
 
