@@ -1,0 +1,30 @@
+[project]
+name = "charter"
+version = "0.1.0"
+description = "Governed multi-role delivery for AI coding agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "mcp>=1.2",
+    "typer>=0.12",
+]
+
+[project.scripts]
+charter = "charter.cli:app"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/charter"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
