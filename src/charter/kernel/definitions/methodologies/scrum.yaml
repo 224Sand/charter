@@ -1,0 +1,8 @@
+id: scrum
+name: Scrum
+phases: [requirements, implementation, verification, release]
+roles: [developer, qa, appsec]
+decision_points:
+  - sprint_planning
+  - sprint_review
+  - retrospective

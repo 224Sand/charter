@@ -1,0 +1,7 @@
+id: cicd
+name: CI/CD
+phases: [implementation, verification, release]
+roles: [developer, qa, appsec]
+decision_points:
+  - merge
+  - release
