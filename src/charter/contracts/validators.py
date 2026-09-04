@@ -69,6 +69,18 @@ _PYTEST_NO_TESTS_COLLECTED = 5
 # spec-true fallback rather than dropped.
 _PYTEST_SELECTOR_NOT_FOUND = (_PYTEST_USAGE_ERROR, _PYTEST_NO_TESTS_COLLECTED)
 
+# Exit 4 is ALSO what pytest returns when the targeted file exists but fails
+# to collect at all -- a SyntaxError or an ImportError in the module. That is
+# a different problem from "the test name is wrong", and telling a submitter
+# whose file doesn't even import to "check the test name" is false. Verified
+# empirically (pytest 7.4.0) that pytest's own stdout tells the two apart: a
+# plain unresolved node id prints only "ERROR: not found: ...", while a file
+# that raises on import additionally prints an "ERROR collecting <path>"
+# section (present whether the underlying cause is a SyntaxError or an
+# ImportError/ModuleNotFoundError) ahead of the traceback. Use that marker,
+# not the exit code alone, to choose the accurate reason.
+_PYTEST_COLLECTION_ERROR_MARKER = "ERROR collecting"
+
 
 def validate_failing_test(a: FailingTest, repo: Path) -> ValidationResult:
     """The named test must genuinely fail against the tree as it stands.
@@ -98,6 +110,12 @@ def validate_failing_test(a: FailingTest, repo: Path) -> ValidationResult:
             f"{selector} did not finish within {TEST_TIMEOUT_SECONDS}s")
 
     if proc.returncode in _PYTEST_SELECTOR_NOT_FOUND:
+        if _PYTEST_COLLECTION_ERROR_MARKER in proc.stdout:
+            return ValidationResult.reject(
+                f"{selector} failed to collect -- the test file did not "
+                f"import cleanly, so this is not evidence about "
+                f"{a.defect_id} one way or the other:\n"
+                f"{proc.stdout[-800:]}")
         return ValidationResult.reject(
             f"{selector} collected no test -- check the test name")
     if proc.returncode == 0:

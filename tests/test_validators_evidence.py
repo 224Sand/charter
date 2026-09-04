@@ -53,6 +53,38 @@ def test_a_missing_test_name_is_rejected(tmp_path):
     assert "collected no test" in result.reason
 
 
+def test_a_syntax_error_in_the_test_file_is_rejected_with_an_accurate_reason(tmp_path):
+    _write(tmp_path, "tests/test_bug.py", """
+        def test_reproduces(:
+            assert 1 == 1
+    """)
+    art = FailingTest(kind="failing_test", test_path="tests/test_bug.py",
+                      test_name="test_reproduces", defect_id="D-004")
+    result = validate_failing_test(art, tmp_path)
+    assert not result.accepted
+    # Not the name-typo message -- the file itself never imported, so
+    # "check the test name" would be false.
+    assert "collected no test" not in result.reason
+    assert "did not import cleanly" in result.reason
+    assert "SyntaxError" in result.reason
+
+
+def test_a_failing_import_in_the_test_file_is_rejected_with_an_accurate_reason(tmp_path):
+    _write(tmp_path, "tests/test_bug.py", """
+        import nonexistent_module_charter_evidence_check
+
+        def test_reproduces():
+            assert 1 == 1
+    """)
+    art = FailingTest(kind="failing_test", test_path="tests/test_bug.py",
+                      test_name="test_reproduces", defect_id="D-004")
+    result = validate_failing_test(art, tmp_path)
+    assert not result.accepted
+    assert "collected no test" not in result.reason
+    assert "did not import cleanly" in result.reason
+    assert "nonexistent_module_charter_evidence_check" in result.reason
+
+
 def test_dispatch_rejects_an_artifact_of_the_wrong_kind(tmp_path):
     art = ChangeSummary(kind="change_summary", files=["a.py"],
                         decision_ref="D-1", summary="x")
