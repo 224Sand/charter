@@ -37,15 +37,17 @@ def test_a_full_governed_build_reaches_done(tmp_path):
 
     main.init(idea="harden the login path", methodology="scrum")
 
-    assert json.loads(main.next())["assignment"]["role"] == "developer"
-    assert json.loads(main.submit("developer", {
-        "kind": "change_summary", "files": ["app.py"],
-        "decision_ref": "D-1", "summary": "login query built from raw input"}))["accepted"]
-
+    # RED: QA proves the defect exists before anyone fixes it.
     assert json.loads(review.next())["assignment"]["role"] == "qa"
     assert json.loads(review.submit("qa", {
         "kind": "failing_test", "test_path": "tests/test_login.py",
         "test_name": "test_login_is_parameterised", "defect_id": "D-1"}))["accepted"]
+
+    # GREEN: the developer answers it, in the main session.
+    assert json.loads(main.next())["assignment"]["role"] == "developer"
+    assert json.loads(main.submit("developer", {
+        "kind": "change_summary", "files": ["app.py"],
+        "decision_ref": "D-1", "summary": "login query built from raw input"}))["accepted"]
 
     assert json.loads(review.next())["assignment"]["role"] == "appsec"
     assert json.loads(review.submit("appsec", {
@@ -67,19 +69,25 @@ def test_one_session_playing_every_role_is_refused(tmp_path):
     solo.init(idea="harden the login path", methodology="scrum")
 
     solo.next()
+    assert json.loads(solo.submit("qa", {
+        "kind": "failing_test", "test_path": "tests/test_login.py",
+        "test_name": "test_login_is_parameterised", "defect_id": "D-1"}))["accepted"]
+
+    solo.next()
     assert json.loads(solo.submit("developer", {
         "kind": "change_summary", "files": ["app.py"],
         "decision_ref": "D-1", "summary": "login query built from raw input"}))["accepted"]
 
+    # appsec now reviews the developer's work from the SAME process
     solo.next()
-    result = json.loads(solo.submit("qa", {
-        "kind": "failing_test", "test_path": "tests/test_login.py",
-        "test_name": "test_login_is_parameterised", "defect_id": "D-1"}))
+    result = json.loads(solo.submit("appsec", {
+        "kind": "threat_entry", "cwe_id": "CWE-89",
+        "attack_path": "login() interpolates the username straight into SQL, so "
+                       "a crafted username changes the query.",
+        "affected_files": ["app.py"]}))
     assert not result["accepted"]
     assert "same process" in result["reason"]
-
-    # and nothing was recorded: the build has only the developer's sign-off
-    assert json.loads(solo.status())["signed_off"] == ["developer"]
+    assert "appsec" not in json.loads(solo.status())["signed_off"]
 
 
 def test_the_build_survives_losing_every_bit_of_memory(tmp_path):
@@ -88,10 +96,11 @@ def test_the_build_survives_losing_every_bit_of_memory(tmp_path):
 
     warm = Handlers(tmp_path)
     warm.next()
-    warm.submit("developer", {"kind": "change_summary", "files": ["app.py"],
-                              "decision_ref": "D-1", "summary": "raw input"})
+    warm.submit("qa", {"kind": "failing_test", "test_path": "tests/test_login.py",
+                       "test_name": "test_login_is_parameterised",
+                       "defect_id": "D-1"})
     del warm
 
     cold = Handlers(tmp_path)               # brand-new object, nothing shared
-    assert json.loads(cold.next())["assignment"]["role"] == "qa"
-    assert json.loads(cold.status())["signed_off"] == ["developer"]
+    assert json.loads(cold.next())["assignment"]["role"] == "developer"
+    assert json.loads(cold.status())["signed_off"] == ["qa"]

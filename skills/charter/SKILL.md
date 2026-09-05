@@ -54,9 +54,9 @@ Owns whether a claim of "it works" is actually demonstrated. Asks what proves th
 
 ## Methodologies
 
-**CI/CD** (`cicd`) - phases: implementation, verification, release. Roles: developer, qa, appsec.
+**CI/CD** (`cicd`) - phases: implementation, verification, release. Roles: qa, developer, appsec.
 
-**Scrum** (`scrum`) - phases: requirements, implementation, verification, release. Roles: developer, qa, appsec.
+**Scrum** (`scrum`) - phases: requirements, implementation, verification, release. Roles: qa, developer, appsec.
 
 ## What makes this fail
 

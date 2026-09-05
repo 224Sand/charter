@@ -17,6 +17,19 @@ class ArtifactKind(str, Enum):
     THREAT_ENTRY = "threat_entry"
 
 
+class EvidenceScope(str, Enum):
+    """What a role's artifact is evidence ABOUT.
+
+    TREE artifacts approve the code as it currently stands, so they go stale
+    the moment it moves. DEFECT artifacts prove a problem existed -- a failing
+    test is exactly that -- and must survive the fix they justified, or the
+    evidence is destroyed by the very change it enabled.
+    """
+
+    TREE = "tree"
+    DEFECT = "defect"
+
+
 class RoleDef(BaseModel):
     """One role's lens and the contract it owes."""
 
@@ -29,6 +42,7 @@ class RoleDef(BaseModel):
     brief: str = Field(min_length=1)
     contract: ArtifactKind
     activates_on: list[str] = Field(min_length=1)
+    evidence: EvidenceScope = EvidenceScope.TREE
 
 
 class MethodologyDef(BaseModel):

@@ -13,7 +13,7 @@ def handlers(tmp_path):
 def test_init_creates_the_charter_and_reports_the_roster(handlers):
     out = json.loads(handlers.init(idea="build a thing", methodology="scrum"))
     assert out["methodology"] == "scrum"
-    assert out["roles"] == ["developer", "qa", "appsec"]
+    assert out["roles"] == ["qa", "developer", "appsec"]
 
 
 def test_next_before_init_returns_a_clear_error(handlers):
@@ -23,17 +23,19 @@ def test_next_before_init_returns_a_clear_error(handlers):
 
 
 def test_full_round_trip_through_the_handlers(handlers):
+    (handlers.repo / "t.py").write_text(
+        "def test_reproduces():\n    assert 1 == 2\n")
     handlers.init(idea="build a thing", methodology="scrum")
     assignment = json.loads(handlers.next())
-    assert assignment["assignment"]["role"] == "developer"
+    assert assignment["assignment"]["role"] == "qa"
 
-    accepted = json.loads(handlers.submit(role="developer", artifact={
-        "kind": "change_summary", "files": ["a.py"],
-        "decision_ref": "D-1", "summary": "did the thing"}))
+    accepted = json.loads(handlers.submit(role="qa", artifact={
+        "kind": "failing_test", "test_path": "t.py",
+        "test_name": "test_reproduces", "defect_id": "D-1"}))
     assert accepted["accepted"] is True
 
     status = json.loads(handlers.status())
-    assert status["signed_off"] == ["developer"]
+    assert status["signed_off"] == ["qa"]
 
 
 def test_an_unknown_methodology_is_reported_not_raised(handlers):
@@ -50,6 +52,7 @@ def test_init_twice_with_real_state_corruption_prevention(tmp_path):
     (3) developer sign-off and progress survive.
     """
     (tmp_path / "a.py").write_text("x = 1\n")
+    (tmp_path / "t.py").write_text("def test_reproduces():\n    assert 1 == 2\n")
     handlers = Handlers(tmp_path)
 
     # First init with scrum methodology
@@ -59,15 +62,15 @@ def test_init_twice_with_real_state_corruption_prevention(tmp_path):
 
     # Submit real developer work to create actual state
     assignment = json.loads(handlers.next())
-    assert assignment["assignment"]["role"] == "developer"
-    accepted = json.loads(handlers.submit(role="developer", artifact={
-        "kind": "change_summary", "files": ["a.py"],
-        "decision_ref": "D-1", "summary": "implemented feature A"}))
+    assert assignment["assignment"]["role"] == "qa"
+    accepted = json.loads(handlers.submit(role="qa", artifact={
+        "kind": "failing_test", "test_path": "t.py",
+        "test_name": "test_reproduces", "defect_id": "D-1"}))
     assert accepted["accepted"] is True
 
     # Verify sign-off recorded
     status = json.loads(handlers.status())
-    assert "developer" in status["signed_off"]
+    assert "qa" in status["signed_off"]
     original_methodology = status["methodology"]
     original_roles = set(status["roles"])
 
@@ -80,11 +83,11 @@ def test_init_twice_with_real_state_corruption_prevention(tmp_path):
     status_after = json.loads(handlers.status())
     assert status_after["methodology"] == original_methodology
     assert set(status_after["roles"]) == original_roles
-    assert "developer" in status_after["signed_off"]
+    assert "qa" in status_after["signed_off"]
 
     # Verify loop still advances to qa (in-progress state not corrupted)
     assignment_after = json.loads(handlers.next())
-    assert assignment_after["assignment"]["role"] == "qa"
+    assert assignment_after["assignment"]["role"] == "developer"
 
 
 # FINDING 2 (actual implementation): test module-level handlers directly

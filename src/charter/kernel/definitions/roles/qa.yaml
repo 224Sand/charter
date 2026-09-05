@@ -1,6 +1,7 @@
 id: qa
 name: QA Lead
 contract: failing_test
+evidence: defect
 activates_on: [scrum, cicd]
 brief: >-
   Owns whether a claim of "it works" is actually demonstrated. Asks what proves this

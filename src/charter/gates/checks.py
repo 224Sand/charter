@@ -6,7 +6,7 @@ independence -- see the design doc, section 7.4.
 """
 from pydantic import BaseModel
 
-from charter.kernel.models import Roster
+from charter.kernel.models import EvidenceScope, Roster
 from charter.record.models import Signoff
 
 # The role whose passes are 'the work' every reviewing role is checked
@@ -87,12 +87,44 @@ def staleness(signoff: Signoff, current_tree_sha: str) -> GateResult:
 def role_coverage(
     roster: Roster, signoffs: list[Signoff], current_tree_sha: str
 ) -> GateResult:
-    """A phase cannot close while a required role has not signed off the
-    current tree."""
-    fresh = {s.role for s in signoffs if s.tree_sha == current_tree_sha}
+    """A phase cannot close while a required role has not signed off.
+
+    Freshness depends on what the role's evidence is ABOUT. A tree-scoped
+    sign-off approves the code as it stands and is void once it moves. A
+    defect-scoped one -- a failing test proving the problem existed -- must
+    survive the fix it justified, or the evidence is destroyed by the change
+    it enabled.
+    """
+    scopes = {r.id: r.evidence for r in roster.roles}
+    fresh = {
+        s.role for s in signoffs
+        if scopes.get(s.role) is EvidenceScope.DEFECT
+        or s.tree_sha == current_tree_sha
+    }
     missing = [r for r in roster.role_ids() if r not in fresh]
     if missing:
         return GateResult.block(
             f"these roles have not signed off the current tree: "
             f"{', '.join(missing)}")
+
+    # Independence, checked over the whole set rather than per submission.
+    # With a reviewing role running BEFORE the producer, there is no producer
+    # sign-off to compare against at submit time, so the per-submission check
+    # cannot fire. This is what closes that hole, whatever the order.
+    producer = next(
+        (s for s in signoffs if s.role == _PRODUCER_ROLE and s.role in fresh),
+        None)
+    if producer is not None and producer.connection_id is not None:
+        shared = [
+            s.role for s in signoffs
+            if s.role in fresh
+            and s.role != _PRODUCER_ROLE
+            and s.connection_id == producer.connection_id
+        ]
+        if shared:
+            return GateResult.block(
+                f"cannot close: {', '.join(sorted(set(shared)))} signed off "
+                f"from the same process as {_PRODUCER_ROLE!r} "
+                f"(connection {producer.connection_id[:8]}). Re-run those "
+                f"reviews from their own charter session.")
     return GateResult.allow()
