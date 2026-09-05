@@ -43,7 +43,11 @@ def test_a_full_governed_build_reaches_done(tmp_path):
         "kind": "failing_test", "test_path": "tests/test_login.py",
         "test_name": "test_login_is_parameterised", "defect_id": "D-1"}))["accepted"]
 
-    # GREEN: the developer answers it, in the main session.
+    # GREEN: the developer actually fixes the code, in the main session.
+    # Submitting a change_summary while app.py stays vulnerable is exactly what
+    # charter now refuses -- the defect QA proved must genuinely stop.
+    (tmp_path / "app.py").write_text(
+        "def login(u):\n    return (\"SELECT * FROM users WHERE name = ?\", (u,))\n")
     assert json.loads(main.next())["assignment"]["role"] == "developer"
     assert json.loads(main.submit("developer", {
         "kind": "change_summary", "files": ["app.py"],

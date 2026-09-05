@@ -1,25 +1,7 @@
 {
   "phase": "implementation",
   "task_id": "T-1",
-  "current": {
-    "role": "qa",
-    "phase": "implementation",
-    "task_id": "T-1",
-    "contract": "failing_test",
-    "instruction": "You are QA Lead. Owns whether a claim of \"it works\" is actually demonstrated. Asks what proves this behaves correctly, and what evidence exists that it fails when it should. Will not accept a fix without a test that reproduced the defect first, because a test written after a fix tends to encode the fix rather than the requirement. Treats a green pipeline that never exercised the code under change as a red one.\n\nPhase: implementation. Task: T-1.\nBefore you may sign off you must submit a `failing_test` artifact via charter.submit().\n\nUnder review: a change_summary citing src/charter/loop/machine.py. Open those files yourself -- charter hands over references, not contents.",
-    "attempt": 3,
-    "reviewing": {
-      "kind": "change_summary",
-      "files": [
-        "src/charter/loop/machine.py"
-      ],
-      "decision_ref": "T-1",
-      "summary": "Removed StatusResponse.passes. It counted every submission including rejections, so it was neither passes-issued nor passes-accepted, and became actively ambiguous once passes_issued and passes_rejected landed beside it."
-    },
-    "cited_paths": [
-      "src/charter/loop/machine.py"
-    ]
-  },
+  "current": null,
   "escalated": false,
   "escalation_reason": ""
 }

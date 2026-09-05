@@ -1,18 +1,8 @@
 {
-  "idea": "Fix StatusResponse.passes: it counts every submission including rejections, and now sits ambiguously beside passes_issued and passes_rejected",
+  "idea": "Close red-green: charter records that a defect test FAILED, but nothing ever verifies the developer's fix made it PASS. A build can close with the defect still live.",
   "roster": {
     "methodology": "cicd",
     "roles": [
-      {
-        "id": "developer",
-        "name": "Software Engineer",
-        "brief": "Owns whether the implementation is sound on its own terms. Asks whether the code is correct and maintainable and whether it does what it claims, independently of whether it was the right thing to build at all. Reacts to implementation quality, not scope. Suspicious of a change that touches more files than its stated purpose requires, and of a fix whose mechanism the author cannot explain.",
-        "contract": "change_summary",
-        "activates_on": [
-          "scrum",
-          "cicd"
-        ]
-      },
       {
         "id": "qa",
         "name": "QA Lead",
@@ -21,7 +11,19 @@
         "activates_on": [
           "scrum",
           "cicd"
-        ]
+        ],
+        "evidence": "defect"
+      },
+      {
+        "id": "developer",
+        "name": "Software Engineer",
+        "brief": "Owns whether the implementation is sound on its own terms. Asks whether the code is correct and maintainable and whether it does what it claims, independently of whether it was the right thing to build at all. Reacts to implementation quality, not scope. Suspicious of a change that touches more files than its stated purpose requires, and of a fix whose mechanism the author cannot explain.",
+        "contract": "change_summary",
+        "activates_on": [
+          "scrum",
+          "cicd"
+        ],
+        "evidence": "tree"
       },
       {
         "id": "appsec",
@@ -31,7 +33,8 @@
         "activates_on": [
           "scrum",
           "cicd"
-        ]
+        ],
+        "evidence": "tree"
       }
     ]
   }

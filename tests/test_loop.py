@@ -240,3 +240,27 @@ def test_independence_is_enforced_even_when_the_reviewer_signs_first(tmp_path):
     result = role_coverage(roster, store.signoffs(), "t")
     assert not result.allowed
     assert "same process" in result.reason
+
+
+def test_a_still_reproducing_defect_blocks_instead_of_crashing(tmp_path):
+    """Coverage can now refuse while EVERY role has signed -- the defect is
+    still live. There is no role left to issue, and _issue's generator has no
+    default, so this used to raise StopIteration out of next()."""
+    roster = roster_for("cicd", load_methodologies(), load_roles())
+    store = RecordStore(tmp_path)
+    store.init(roster, idea="x", phase="implementation")
+    _seed_repo(tmp_path)
+    sha = None
+    from charter.vcs import tree_sha
+    sha = tree_sha(tmp_path)
+    for role, conn, art in (
+        ("qa", "c1", FailingTest(kind="failing_test", test_path="t.py",
+                                 test_name="test_reproduces", defect_id="D-1")),
+        ("developer", "c2", ART_CHANGE),
+        ("appsec", "c3", ART_CHANGE),
+    ):
+        store.append_signoff(Signoff(role=role, artifact=art, tree_sha=sha,
+                                     connection_id=conn))
+    r = Council(store, tmp_path, "c4").next()      # must not raise
+    assert r.kind == "blocked"
+    assert "still fails" in r.reason

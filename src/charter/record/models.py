@@ -40,6 +40,12 @@ class Signoff(BaseModel):
     # None means this sign-off predates v2 (or no id was supplied). The
     # independence gate reports that as UNAVAILABLE, never as a pass.
     connection_id: str | None = None
+    # sha256 of the cited evidence file at the moment it was accepted. Green
+    # verification re-runs that file against the LIVE tree, so without this a
+    # file accepted once could be edited afterwards to carry arbitrary code
+    # that pytest then executes on every later poll (CWE-94, found by charter's
+    # own AppSec pass). None means pre-dating this check, or no file cited.
+    evidence_digest: str | None = None
     # v1 field. Retained so v1 records still parse; no longer consulted --
     # the synthetic convention it encoded is what v2 replaced.
     producer_role: str | None = None

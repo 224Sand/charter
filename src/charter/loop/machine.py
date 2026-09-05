@@ -17,7 +17,8 @@ from pydantic import BaseModel, ValidationError
 
 from charter.contracts.models import parse_artifact
 from charter.contracts.validators import validate
-from charter.gates.checks import (_PRODUCER_ROLE, no_self_signoff,
+from charter.gates.checks import (_PRODUCER_ROLE, covered_roles,
+                                  evidence_digest, no_self_signoff,
                                   role_coverage)
 from charter.kernel.models import ArtifactKind
 from charter.record.models import Assignment, Signoff, TranscriptEvent
@@ -50,7 +51,7 @@ def _cited_paths(artifact) -> list[str]:
 
 
 class NextResponse(BaseModel):
-    kind: str                      # "assignment" | "done" | "escalated"
+    kind: str          # "assignment" | "done" | "blocked" | "escalated"
     assignment: Assignment | None = None
     reason: str = ""
 
@@ -100,7 +101,7 @@ class Council:
         roster = self.store.load_roster()
         sha = tree_sha(self.repo)
 
-        coverage = role_coverage(roster, self.store.signoffs(), sha)
+        coverage = role_coverage(roster, self.store.signoffs(), sha, self.repo)
         if coverage.allowed:
             return NextResponse(
                 kind="done",
@@ -108,6 +109,14 @@ class Council:
 
         if state.current is not None:
             return NextResponse(kind="assignment", assignment=state.current)
+
+        # Every role has signed and coverage still refuses -- the defect its
+        # own evidence proved is still reproducing. There is no role left to
+        # issue, and this is not an escalation of a failed contract; it is the
+        # build honestly reporting it is not finished.
+        signed = covered_roles(roster, self.store.signoffs(), sha)
+        if all(r.id in signed for r in roster.roles):
+            return NextResponse(kind="blocked", reason=coverage.reason)
 
         assignment = self._issue(roster, state, sha)
         state.current = assignment
@@ -148,7 +157,8 @@ class Council:
 
         signoff = Signoff(role=current.role, artifact=artifact,
                           tree_sha=tree_sha(self.repo),
-                          connection_id=self.connection_id)
+                          connection_id=self.connection_id,
+                          evidence_digest=evidence_digest(artifact, self.repo))
         gate = no_self_signoff(signoff, self.store.signoffs(),
                                self.store.load_roster())
         if not gate.allowed:
@@ -165,7 +175,8 @@ class Council:
         roster = self.store.load_roster()
         sha = tree_sha(self.repo)
         events = self.store.events()
-        signed = [s.role for s in self.store.signoffs() if s.tree_sha == sha]
+        covered = covered_roles(roster, self.store.signoffs(), sha)
+        signed = [r for r in roster.role_ids() if r in covered]
         return StatusResponse(
             phase=state.phase, task_id=state.task_id,
             methodology=roster.methodology, roles=roster.role_ids(),
@@ -186,7 +197,7 @@ class Council:
     # ---- internals -------------------------------------------------------
     def _issue(self, roster, state, sha: str) -> Assignment:
         signoffs = self.store.signoffs()
-        signed = {s.role for s in signoffs if s.tree_sha == sha}
+        signed = covered_roles(roster, signoffs, sha)
         role = next(r for r in roster.roles if r.id not in signed)
         produced = next(
             (s for s in signoffs

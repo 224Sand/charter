@@ -7,6 +7,12 @@ independence -- see the design doc, section 7.4.
 from pydantic import BaseModel
 
 from charter.kernel.models import EvidenceScope, Roster
+import hashlib
+from pathlib import Path
+
+from charter.contracts.models import FailingTest
+from charter.contracts.validators import (_resolve_inside,
+                                          validate_failing_test)
 from charter.record.models import Signoff
 
 # The role whose passes are 'the work' every reviewing role is checked
@@ -84,8 +90,43 @@ def staleness(signoff: Signoff, current_tree_sha: str) -> GateResult:
     return GateResult.allow()
 
 
-def role_coverage(
+def evidence_digest(artifact, repo: Path) -> str | None:
+    """sha256 of the file an artifact cites as its evidence, or None.
+
+    Green verification executes that file. Pinning its content at acceptance is
+    what stops an accepted file being swapped for one that runs something else.
+    """
+    path = getattr(artifact, "test_path", None)
+    if path is None:
+        return None
+    resolved = _resolve_inside(repo, path)
+    if resolved is None or not resolved.is_file():
+        return None
+    return hashlib.sha256(resolved.read_bytes()).hexdigest()
+
+
+def covered_roles(
     roster: Roster, signoffs: list[Signoff], current_tree_sha: str
+) -> set[str]:
+    """Which roles count as having signed off the current tree.
+
+    The single definition of freshness. It was duplicated -- role_coverage
+    applied evidence scope, the loop's role picker compared tree_sha directly --
+    and the two disagreed the moment defect-scoped evidence existed: coverage
+    counted QA as covered while the picker re-issued it forever. One rule, one
+    place.
+    """
+    scopes = {r.id: r.evidence for r in roster.roles}
+    return {
+        s.role for s in signoffs
+        if scopes.get(s.role) is EvidenceScope.DEFECT
+        or s.tree_sha == current_tree_sha
+    }
+
+
+def role_coverage(
+    roster: Roster, signoffs: list[Signoff], current_tree_sha: str,
+    repo: Path | None = None,
 ) -> GateResult:
     """A phase cannot close while a required role has not signed off.
 
@@ -95,12 +136,7 @@ def role_coverage(
     survive the fix it justified, or the evidence is destroyed by the change
     it enabled.
     """
-    scopes = {r.id: r.evidence for r in roster.roles}
-    fresh = {
-        s.role for s in signoffs
-        if scopes.get(s.role) is EvidenceScope.DEFECT
-        or s.tree_sha == current_tree_sha
-    }
+    fresh = covered_roles(roster, signoffs, current_tree_sha)
     missing = [r for r in roster.role_ids() if r not in fresh]
     if missing:
         return GateResult.block(
@@ -127,4 +163,35 @@ def role_coverage(
                 f"from the same process as {_PRODUCER_ROLE!r} "
                 f"(connection {producer.connection_id[:8]}). Re-run those "
                 f"reviews from their own charter session.")
+
+    # Green. Charter recorded that a defect test FAILED; nothing yet confirmed
+    # the fix made it pass, so a build could close with the defect still live.
+    # Re-run each defect test before letting the phase close.
+    for s in signoffs:
+        if s.role not in fresh or not isinstance(s.artifact, FailingTest):
+            continue
+        # Content, not just path. The file is about to be executed; if it is
+        # not the one that was reviewed, nothing downstream is trustworthy.
+        if s.evidence_digest is not None and repo is not None:
+            current = evidence_digest(s.artifact, repo)
+            if current != s.evidence_digest:
+                return GateResult.block(
+                    f"cannot close: {s.artifact.test_path} changed since it was "
+                    f"accepted as evidence for {s.artifact.defect_id!r}. Charter "
+                    f"re-runs that file, so it will not execute content nobody "
+                    f"reviewed. Re-submit it through {s.role!r}.")
+        if repo is None:
+            return GateResult.block(
+                f"cannot close: {s.role!r} recorded a failing test for defect "
+                f"{s.artifact.defect_id!r} and charter was given no repository "
+                f"to re-run it in, so it cannot show the defect is fixed. "
+                f"Not verified is not the same as passed.")
+        # validate_failing_test accepts when the test FAILS. Still accepted
+        # here means the defect it proved is still reproducing.
+        if validate_failing_test(s.artifact, repo).accepted:
+            return GateResult.block(
+                f"cannot close: {s.artifact.test_path}::"
+                f"{s.artifact.test_name} still fails, so defect "
+                f"{s.artifact.defect_id!r} is not fixed. Charter proved this "
+                f"defect exists; it will not close until it stops.")
     return GateResult.allow()
