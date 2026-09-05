@@ -71,7 +71,6 @@ class StatusResponse(BaseModel):
     outstanding: list[str]
     escalated: bool
     escalation_reason: str = ""
-    passes: int
     # What the handover is costing. Not token counts -- charter cannot see the
     # model's billing -- but bytes handed over is the quantity charter controls,
     # and it is the leading indicator of a handover that has started to bloat.
@@ -173,7 +172,6 @@ class Council:
             signed_off=signed,
             outstanding=[r for r in roster.role_ids() if r not in signed],
             escalated=state.escalated, escalation_reason=state.escalation_reason,
-            passes=len([e for e in self.store.events() if e.event == "submitted"]),
             passes_issued=len([e for e in events if e.event == "issued"]),
             passes_rejected=len([e for e in events if e.event == "rejected"]),
             bytes_handed_over=(

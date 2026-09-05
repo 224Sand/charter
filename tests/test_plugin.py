@@ -60,3 +60,25 @@ def test_the_independence_statement_names_its_own_limits():
         "must say what it does NOT prove")
     for limit in ("restart", "clicking through"):
         assert limit in lowered, f"limit {limit!r} is not disclosed"
+
+
+def test_the_mcp_dependency_is_bounded_to_the_api_charter_targets():
+    """An unbounded lower bound on a fast-moving SDK is how charter shipped
+    broken: `mcp>=1.2` resolved to 2.x, whose decorator API this code does not
+    use, and the failure was masked by tests running under a different
+    interpreter that happened to have 1.x installed."""
+    import re
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    spec = re.search(r'"mcp([^"]*)"', pyproject).group(1)
+    assert "<" in spec, f"mcp dependency {spec!r} has no upper bound"
+
+
+def test_the_declared_mcp_api_is_the_one_the_code_uses():
+    """Fails loudly against an SDK where the decorators charter relies on are
+    gone, rather than at a stranger's first install."""
+    from mcp.server import Server
+
+    for decorator in ("list_tools", "call_tool"):
+        assert hasattr(Server, decorator), (
+            f"installed mcp has no Server.{decorator}; charter's server code "
+            f"targets the 1.x decorator API")

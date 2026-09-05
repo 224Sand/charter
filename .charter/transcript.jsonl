@@ -1,0 +1,8 @@
+{"event": "issued", "role": "developer", "detail": "attempt 1", "at": "2026-09-05T09:08:39.628120Z"}
+{"event": "submitted", "role": "developer", "detail": "", "at": "2026-09-05T09:09:19.591838Z"}
+{"event": "accepted", "role": "developer", "detail": "", "at": "2026-09-05T09:09:19.613119Z"}
+{"event": "issued", "role": "qa", "detail": "attempt 1", "at": "2026-09-05T09:09:19.637803Z"}
+{"event": "submitted", "role": "qa", "detail": "", "at": "2026-09-05T09:11:30.150694Z"}
+{"event": "rejected", "role": "qa", "detail": "cannot verify tests/test_loop.py::test_status_reports_what_the_handover_is_costing: pytest is not available to the interpreter charter is running under (/Users/sand224/charter/.venv/bin/python3). charter must run under an interpreter that can execute this repository's tests. Nothing was accepted as evidence.", "at": "2026-09-05T09:11:30.185248Z"}
+{"event": "submitted", "role": "qa", "detail": "", "at": "2026-09-05T09:11:55.011977Z"}
+{"event": "rejected", "role": "qa", "detail": "tests/test_loop.py::test_status_reports_what_the_handover_is_costing passes against the current tree, so it is not evidence of defect T-1. A test that reproduces the defect must fail before the fix.", "at": "2026-09-05T09:11:55.564488Z"}
