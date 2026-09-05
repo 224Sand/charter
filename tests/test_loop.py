@@ -1,0 +1,89 @@
+import pytest
+from charter.kernel.methodology import roster_for
+from charter.library import load_methodologies, load_roles
+from charter.loop.machine import Council, MAX_ATTEMPTS
+from charter.record.store import RecordStore
+
+
+@pytest.fixture
+def council(tmp_path):
+    roster = roster_for("scrum", load_methodologies(), load_roles())
+    store = RecordStore(tmp_path)
+    store.init(roster, idea="a governed build", phase="implementation")
+    (tmp_path / "a.py").write_text("x = 1\n")
+    return Council(store, tmp_path)
+
+
+GOOD_CHANGE = {"kind": "change_summary", "files": ["a.py"],
+               "decision_ref": "D-1", "summary": "did the thing"}
+BAD_CHANGE = {"kind": "change_summary", "files": ["ghost.py"],
+              "decision_ref": "D-1", "summary": "did the thing"}
+
+
+def test_next_issues_the_first_role_with_its_contract(council):
+    r = council.next()
+    assert r.kind == "assignment"
+    assert r.assignment.role == "developer"
+    assert r.assignment.contract == "change_summary"
+    assert r.assignment.instruction
+
+
+def test_next_is_idempotent_until_something_is_submitted(council):
+    assert council.next().assignment.role == council.next().assignment.role
+
+
+def test_a_valid_submission_is_accepted_and_advances_the_role(council):
+    council.next()
+    assert council.submit("developer", GOOD_CHANGE).accepted
+    assert council.next().assignment.role == "qa"
+
+
+def test_an_invalid_submission_is_rejected_and_reissues_the_same_role(council):
+    council.next()
+    result = council.submit("developer", BAD_CHANGE)
+    assert not result.accepted
+    assert "ghost.py" in result.reason
+    assert result.attempts_remaining == MAX_ATTEMPTS - 1
+    assert council.next().assignment.role == "developer"
+
+
+def test_submitting_as_the_wrong_role_is_refused(council):
+    council.next()
+    result = council.submit("qa", GOOD_CHANGE)
+    assert not result.accepted
+    assert "developer" in result.reason
+
+
+def test_three_failures_escalate_to_a_human(council):
+    council.next()
+    for _ in range(MAX_ATTEMPTS):
+        result = council.submit("developer", BAD_CHANGE)
+    assert result.escalated
+    assert council.next().kind == "escalated"
+
+
+def test_status_reports_outstanding_roles(council):
+    council.next()
+    council.submit("developer", GOOD_CHANGE)
+    s = council.status()
+    assert s.signed_off == ["developer"]
+    assert "qa" in s.outstanding
+    assert s.methodology == "scrum"
+
+
+def test_every_transition_is_recorded_in_the_transcript(council):
+    council.next()
+    council.submit("developer", BAD_CHANGE)
+    council.submit("developer", GOOD_CHANGE)
+    events = [e.event for e in council.store.events()]
+    assert "issued" in events and "rejected" in events and "accepted" in events
+
+
+def test_a_cold_council_resumes_the_identical_assignment(council, tmp_path):
+    council.next()
+    council.submit("developer", GOOD_CHANGE)
+    expected = council.next().assignment
+
+    cold = Council(RecordStore(tmp_path), tmp_path)
+    assert cold.next().assignment.role == expected.role
+    assert cold.next().assignment.task_id == expected.task_id
