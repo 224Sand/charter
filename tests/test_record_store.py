@@ -1,4 +1,5 @@
 import pytest
+from datetime import timezone
 from charter.kernel.methodology import roster_for
 from charter.library import load_methodologies, load_roles
 from charter.record.models import Assignment, BuildState, Signoff, TranscriptEvent
@@ -59,10 +60,43 @@ def test_a_cold_store_reconstructs_full_state_from_disk(tmp_path, roster):
     cold = RecordStore(tmp_path)          # no shared memory with `warm`
     assert cold.load_state().phase == "verification"
     assert cold.load_state().task_id == "T-7"
-    assert len(cold.signoffs()) == 1
+
+    # Verify discriminated-union round-trip: artifact must be ChangeSummary, not dict
+    signoffs = cold.signoffs()
+    assert len(signoffs) == 1
+    s = signoffs[0]
+    assert isinstance(s.artifact, ChangeSummary), \
+        f"artifact should be ChangeSummary instance, got {type(s.artifact)}"
+    assert s.artifact.files == ["a.py"], \
+        "artifact fields must survive JSON round-trip"
+    assert s.artifact.decision_ref == "D-1"
+    assert s.artifact.summary == "x"
+
+    # Verify timezone-aware timestamps survive
+    assert s.at.tzinfo is not None, \
+        "signoff timestamp must be timezone-aware after reload"
+    assert s.at.tzinfo == timezone.utc, \
+        "timestamp should be UTC after round-trip"
+
     assert cold.load_roster().methodology == "scrum"
 
 
 def test_loading_an_uninitialised_store_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         RecordStore(tmp_path).load_state()
+
+
+def test_load_idea(store):
+    """Idea should persist and be retrievable."""
+    idea = store.load_idea()
+    assert idea == "a governed build"
+
+
+def test_transcript_events_have_timezone_aware_timestamps(store):
+    """Timestamps in transcript events must survive as timezone-aware."""
+    store.append_event(TranscriptEvent(event="test_event", role="qa"))
+    events = store.events()
+    assert len(events) == 1
+    assert events[0].at.tzinfo is not None, \
+        "event timestamp must be timezone-aware after reload"
+    assert events[0].at.tzinfo == timezone.utc
