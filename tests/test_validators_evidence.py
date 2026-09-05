@@ -91,3 +91,29 @@ def test_dispatch_rejects_an_artifact_of_the_wrong_kind(tmp_path):
     result = validate(ArtifactKind.FAILING_TEST, art, tmp_path)
     assert not result.accepted
     assert "expects a failing_test" in result.reason
+
+
+def test_a_missing_pytest_is_rejected_not_accepted_as_a_failure(tmp_path, monkeypatch):
+    """pytest absent from the interpreter must never read as 'the test failed'.
+
+    `python -m pytest` exits 1 when pytest is not installed -- the same code a
+    genuinely failing test produces. Trusting it would accept any submission as
+    evidence on an interpreter without pytest, which is exactly how charter is
+    installed by `uvx`. Not running is not the same as failing.
+    """
+    import charter.contracts.validators as v
+
+    _write(tmp_path, "tests/test_bug.py", """
+        def test_reproduces():
+            assert 1 == 2
+    """)
+    bare = tmp_path / "bare_python"
+    bare.write_text("#!/bin/sh\necho 'No module named pytest' >&2\nexit 1\n")
+    bare.chmod(0o755)
+    monkeypatch.setattr(v.sys, "executable", str(bare))
+
+    art = FailingTest(kind="failing_test", test_path="tests/test_bug.py",
+                      test_name="test_reproduces", defect_id="D-004")
+    result = v.validate_failing_test(art, tmp_path)
+    assert not result.accepted, "a missing pytest must never count as evidence"
+    assert "pytest" in result.reason.lower()

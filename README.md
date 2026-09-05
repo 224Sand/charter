@@ -69,6 +69,17 @@ checkable artifact before it may sign off. `charter_status` reports this same li
 back to you as `independence`, so it is never mistaken for a stronger guarantee than the
 mechanism provides.
 
+## One deployment requirement
+
+QA's `failing_test` contract works by actually running the named test, so **charter must run
+under an interpreter that can execute this repository's tests** — pytest importable, and the
+project's own dependencies available. If pytest cannot run, charter refuses the submission and
+says so; it never treats "could not run" as "the test failed", because that would accept any
+submission as evidence.
+
+In practice: run the server from the same environment you run your tests in, rather than a
+bare `uvx` install, on projects with their own dependencies.
+
 ## Why the state lives on disk
 
 Real builds outlast a session. `.charter/` holds the roster, current state, every

@@ -82,6 +82,18 @@ _PYTEST_SELECTOR_NOT_FOUND = (_PYTEST_USAGE_ERROR, _PYTEST_NO_TESTS_COLLECTED)
 _PYTEST_COLLECTION_ERROR_MARKER = "ERROR collecting"
 
 
+
+def _pytest_is_available(repo: Path) -> bool:
+    """Is pytest actually runnable by the interpreter we shell out to?"""
+    try:
+        probe = subprocess.run(
+            [sys.executable, "-m", "pytest", "--version"],
+            cwd=repo, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return probe.returncode == 0
+
+
 def validate_failing_test(a: FailingTest, repo: Path) -> ValidationResult:
     """The named test must genuinely fail against the tree as it stands.
 
@@ -123,11 +135,26 @@ def validate_failing_test(a: FailingTest, repo: Path) -> ValidationResult:
             f"{selector} passes against the current tree, so it is not "
             f"evidence of defect {a.defect_id}. A test that reproduces the "
             f"defect must fail before the fix.")
+    if proc.returncode == _PYTEST_TESTS_FAILED:
+        # Exit 1 is also what `python -m pytest` returns when pytest is not
+        # installed at all -- indistinguishable from a genuinely failing test
+        # by exit code alone. Accepting it would let ANY submission through on
+        # an interpreter without pytest, which is exactly how `uvx charter`
+        # installs. Not running is not the same as failing, so confirm pytest
+        # really ran before this counts as evidence.
+        if not _pytest_is_available(repo):
+            return ValidationResult.reject(
+                f"cannot verify {selector}: pytest is not available to the "
+                f"interpreter charter is running under ({sys.executable}). "
+                f"charter must run under an interpreter that can execute this "
+                f"repository's tests. Nothing was accepted as evidence.")
+        return ValidationResult.ok()
+
     if proc.returncode != _PYTEST_TESTS_FAILED:
         return ValidationResult.reject(
             f"{selector} errored (pytest exit {proc.returncode}):\n"
             f"{proc.stdout[-800:]}")
-    return ValidationResult.ok()
+    return ValidationResult.ok()  # unreachable; kept as an explicit default
 
 
 _VALIDATORS = {
