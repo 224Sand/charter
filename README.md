@@ -1,56 +1,91 @@
-# role-council
+# charter
 
-![claude skill](https://img.shields.io/badge/claude-skill-CC785C) ![license](https://img.shields.io/badge/license-MIT-green) ![two modes](https://img.shields.io/badge/modes-operating%20%2B%20review-blue)
+**Governed multi-role delivery for AI coding agents.**
 
-**Assigns delivery roles by methodology, then either works under them live or replays a repository's real history through them.** Pick Scrum, Kanban, SAFe, Waterfall, or CI/CD; the methodology determines who exists and what a decision requires; name a role before every substantive action; never let one role sign off its own work.
+Claude Code, Cursor and Codex are competent generalists: one voice writes the code,
+reviews the code, tests the code and declares it done. Charter makes that voice work as a
+team of senior specialists instead, and enforces it — a role must produce a
+machine-checkable artifact before it may sign off, and no role may sign off its own work.
 
-A retrospective where every role agrees on everything isn't a review — it's a rubber stamp with labels on it. This exists to force real disagreement onto the record the way a real cross-functional team produces it: a developer calling something clean, QA approving it on visual grounds, a BA flagging it against the actual requirement, a TPM asking whether the numbers even make sense.
+The calling agent does all the execution. Charter is the conductor and the memory.
 
-## Two modes
+## Install
 
-**Operating mode** — assign roles for a session or a whole project and work under them.
-
-```
-Role: QA Lead — verifying the fix against a failing case first.
-```
-
-Named *before* the action, not after. A role named afterwards is a label on work already done; named first, it changes what you do next, because it tells you what you're optimising for. The methodology decides where a stop is required — Sprint Review in Scrum, a phase gate in Waterfall, the point of pull in Kanban — so execution inside an already-approved decision continues without a stop on every line.
-
-**Review mode** — replay a git repository's real history through those roles.
-
-```
-## D-001 — a test suite reported 0% errors when the real rate was 56.6%
-- QA Lead: the sample was 22 questions written by the person who built the gate...
-- Business Analyst: a 0% error rate should have triggered a question before...
-- TPM: this changes how I'd read every other reported metric in this project...
+```bash
+uvx charter --help
 ```
 
-Every reaction cites a real defect ID, commit, or file. If a claim can't be cited, it's dropped rather than invented — a role-perspective feature is trivially fakeable, and manufactured disagreement is exactly as dishonest as manufactured consensus.
+Add to your MCP config:
 
-## Why methodology comes first
+```json
+{ "mcpServers": { "charter": { "command": "uvx", "args": ["charter", "serve"] } } }
+```
 
-Scrum has no Change Control Board. Waterfall has no retrospective. Kanban has no sprint. A role set picked before a methodology produces a committee that can't decide anything, because nobody knows what a decision *is* on this project. `references/methodologies.md` covers Scrum, Kanban, SAFe, Waterfall/stage-gate, and CI/CD as a delivery layer — each with its real authority table, where a decision is actually made, and its characteristic failure mode (Scrum: a retrospective action nobody checks at the next retrospective; CI/CD: a pipeline whose green result doesn't exercise the code under change).
+The MCP server only answers when asked — it cannot push. So the calling agent needs to
+know, on its own, to keep calling `charter_next` until the build is `done`. Generate that
+instruction file once, into your project's skills directory:
 
-`references/role-archetypes.md` is the library of individual role lenses — what a BA looks for versus a DevOps engineer versus an AppSec engineer — used once the methodology has picked the active roster.
+```bash
+charter gen-skill --dest .claude/skills/charter
+```
 
-## Using it
+This writes `SKILL.md`, rendered directly from the same role and methodology
+definitions the kernel enforces — so the instructions your agent reads and the rules it
+is actually held to can never drift apart. Re-run it whenever the role library changes.
 
-Copy this repository into `.claude/skills/role-council/` in any project, or point a Claude Code session at this path directly. It has no dependency on the project it's used in — both reference files are self-contained, and the methodology library and role archetypes generalize to any codebase or team.
+## Use
 
-Review mode works best on a repo with *some* real history — a defect log, ADRs, closed PRs with review comments, or at minimum commits with real fixes in them. A brand-new repo with one commit has nothing for the council to react to yet.
+```bash
+charter init "harden the login path"     # derive the roster from the methodology
+charter status                            # who has signed off, who is outstanding
+```
 
-## What makes it fail
+Then in your agent session: call `charter_next`, do that role's work, call
+`charter_submit` with its artifact, and keep going until it reports `done`.
 
-- Skipping the methodology step — a cast list is not a governance structure
-- Naming the role after the work — it becomes a label instead of a constraint
-- Inventing an opinion with no citation, or manufacturing conflict for drama
-- A fixed roster that looks identical across two very different projects
-- Quietly dropping the discipline mid-session, which happens exactly when work gets urgent — precisely when the role that would object is the one being skipped
+`charter init` refuses to run against a repository that already has a charter — there is
+no force flag. If you genuinely want to restart, delete the `.charter/` directory and
+init again.
 
-## Origin
+## What a role owes
 
-Extracted from [SandScope](https://github.com/224Sand/sandscope), an agent-reliability platform whose entire build ran under a named-role charter. Its defect log already contained real per-role friction — a QA reaction, a BA reaction, a TPM reaction, on the record for the same incidents — and it became clear that discipline was worth having on any repository, not just one. SandScope's own [council retrospective](https://github.com/224Sand/sandscope/blob/main/docs/00-governance/COUNCIL_RETROSPECTIVE.md) is this skill's first real output.
+| Role | Contract | Rejected when |
+|---|---|---|
+| Developer | `change_summary` | cites a file that does not exist |
+| QA | `failing_test` | the named test **passes** — that is not evidence of a defect |
+| AppSec | `threat_entry` | no CWE id, or an attack path too vague to act on |
+
+Three failures on the same contract escalate to you rather than looping.
+
+## Independence, honestly stated
+
+Roles are separated by label, and each must submit its own contract artifact before it
+may sign off. But in this v1, every role in a build is played by the same calling agent
+— so the separation `no_self_signoff` enforces is structural (label and
+artifact-of-record), not identity-verified. A single agent honestly submitting as
+"developer" and then as "qa" satisfies both labels. What carries the weight is not that
+different agents are involved; it is that each role must produce its own distinct,
+checkable artifact before it may sign off. `charter_status` reports this same limitation
+back to you as `independence`, so it is never mistaken for a stronger guarantee than the
+mechanism provides.
+
+## One deployment requirement
+
+QA's `failing_test` contract works by actually running the named test, so **charter must run
+under an interpreter that can execute this repository's tests** — pytest importable, and the
+project's own dependencies available. If pytest cannot run, charter refuses the submission and
+says so; it never treats "could not run" as "the test failed", because that would accept any
+submission as evidence.
+
+In practice: run the server from the same environment you run your tests in, rather than a
+bare `uvx` install, on projects with their own dependencies.
+
+## Why the state lives on disk
+
+Real builds outlast a session. `.charter/` holds the roster, current state, every
+sign-off with its evidence, and an append-only transcript — human-readable and
+git-diffable. A session with no prior context resumes the build from these files alone.
 
 ## License
 
-MIT. Fork it, change the role library, point it at your own project or process.
+MIT.

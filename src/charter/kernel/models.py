@@ -1,0 +1,47 @@
+"""Core kernel types.
+
+No I/O and no LLM calls live in this package -- see Global Constraints.
+Loading YAML from disk is the loader's job (charter.library), not the
+model's, so the kernel stays a pure, exhaustively testable core.
+"""
+from enum import Enum
+
+from pydantic import BaseModel, Field
+
+
+class ArtifactKind(str, Enum):
+    """What a role must produce before it may sign off."""
+
+    CHANGE_SUMMARY = "change_summary"
+    FAILING_TEST = "failing_test"
+    THREAT_ENTRY = "threat_entry"
+
+
+class RoleDef(BaseModel):
+    """One role's lens and the contract it owes."""
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    brief: str = Field(min_length=1)
+    contract: ArtifactKind
+    activates_on: list[str] = Field(min_length=1)
+
+
+class MethodologyDef(BaseModel):
+    """A methodology: the phases it runs and the roles it activates."""
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    phases: list[str] = Field(min_length=1)
+    roles: list[str] = Field(min_length=1)
+    decision_points: list[str] = Field(default_factory=list)
+
+
+class Roster(BaseModel):
+    """The active role set for one build."""
+
+    methodology: str = Field(min_length=1)
+    roles: list[RoleDef] = Field(min_length=1)
+
+    def role_ids(self) -> list[str]:
+        return [r.id for r in self.roles]
