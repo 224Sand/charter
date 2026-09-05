@@ -115,4 +115,8 @@ def build_server(repo: Path):
             return [TextContent(type="text", text=error_response)]
         return [TextContent(type="text", text=result)]
 
+    # Store references for testing (allows tests to call the real handlers)
+    server._test_list_tools = list_tools
+    server._test_call_tool = call_tool
+
     return server
