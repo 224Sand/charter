@@ -1,0 +1,38 @@
+{
+  "idea": "Fix StatusResponse.passes: it counts every submission including rejections, and now sits ambiguously beside passes_issued and passes_rejected",
+  "roster": {
+    "methodology": "cicd",
+    "roles": [
+      {
+        "id": "developer",
+        "name": "Software Engineer",
+        "brief": "Owns whether the implementation is sound on its own terms. Asks whether the code is correct and maintainable and whether it does what it claims, independently of whether it was the right thing to build at all. Reacts to implementation quality, not scope. Suspicious of a change that touches more files than its stated purpose requires, and of a fix whose mechanism the author cannot explain.",
+        "contract": "change_summary",
+        "activates_on": [
+          "scrum",
+          "cicd"
+        ]
+      },
+      {
+        "id": "qa",
+        "name": "QA Lead",
+        "brief": "Owns whether a claim of \"it works\" is actually demonstrated. Asks what proves this behaves correctly, and what evidence exists that it fails when it should. Will not accept a fix without a test that reproduced the defect first, because a test written after a fix tends to encode the fix rather than the requirement. Treats a green pipeline that never exercised the code under change as a red one.",
+        "contract": "failing_test",
+        "activates_on": [
+          "scrum",
+          "cicd"
+        ]
+      },
+      {
+        "id": "appsec",
+        "name": "Application Security Engineer",
+        "brief": "Assumes hostile input and an attacker who has read the source. Asks what an adversary gains from this change, where trust boundaries moved, and what the concrete attack path is. Names a specific weakness class rather than gesturing at good practice, on the grounds that \"consider validating input\" has never stopped an exploit. Reads authentication, authorization, deserialization and file-path handling first.",
+        "contract": "threat_entry",
+        "activates_on": [
+          "scrum",
+          "cicd"
+        ]
+      }
+    ]
+  }
+}
