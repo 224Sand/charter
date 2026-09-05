@@ -1,0 +1,9 @@
+{"event": "issued", "role": "qa", "detail": "attempt 1", "at": "2026-09-05T11:54:13.151986Z"}
+{"event": "submitted", "role": "qa", "detail": "", "at": "2026-09-05T11:56:15.571020Z"}
+{"event": "accepted", "role": "qa", "detail": "", "at": "2026-09-05T11:56:16.223663Z"}
+{"event": "issued", "role": "developer", "detail": "attempt 1", "at": "2026-09-05T11:59:31.662438Z"}
+{"event": "submitted", "role": "developer", "detail": "", "at": "2026-09-05T11:59:31.663163Z"}
+{"event": "accepted", "role": "developer", "detail": "", "at": "2026-09-05T11:59:31.683435Z"}
+{"event": "issued", "role": "appsec", "detail": "attempt 1", "at": "2026-09-05T11:59:31.703479Z"}
+{"event": "submitted", "role": "appsec", "detail": "", "at": "2026-09-05T12:01:42.645103Z"}
+{"event": "accepted", "role": "appsec", "detail": "", "at": "2026-09-05T12:01:42.667237Z"}
