@@ -2,6 +2,14 @@
 
 An MCP server cannot push, only answer -- so the build advances because the
 calling agent keeps asking `next()`. This class owns what "next" means.
+
+Independence note: roles are separated by label, and each role must submit its
+own contract artifact before it may sign off. In this v1 configuration every
+role is played by the same calling agent, so the separation `no_self_signoff`
+enforces is structural (label and artifact-of-record), not identity-verified
+-- a single agent honestly submitting as "developer" and then as "qa"
+satisfies both labels. `StatusResponse.independence` states this plainly so
+it is never mistaken for a stronger guarantee than the mechanism provides.
 """
 from pathlib import Path
 
@@ -16,6 +24,13 @@ from charter.record.store import RecordStore
 from charter.vcs import tree_sha
 
 MAX_ATTEMPTS = 3
+
+INDEPENDENCE_STATEMENT = (
+    "roles are separated by label, and each must submit its own contract "
+    "artifact before it may sign off; but every role in this build is played "
+    "by the same calling agent, so independence here is structural (label "
+    "and artifact-of-record), not identity-verified."
+)
 
 
 class NextResponse(BaseModel):
@@ -41,6 +56,7 @@ class StatusResponse(BaseModel):
     escalated: bool
     escalation_reason: str = ""
     passes: int
+    independence: str = INDEPENDENCE_STATEMENT
 
 
 class Council:
@@ -78,14 +94,19 @@ class Council:
         state = self.store.load_state()
         current = state.current
         if current is None:
-            return SubmitResponse(
-                accepted=False,
-                reason="no assignment is outstanding; call next() first")
+            reason = "no assignment is outstanding; call next() first"
+            self.store.append_event(TranscriptEvent(
+                event="rejected", role=role, detail=reason))
+            return SubmitResponse(accepted=False, reason=reason)
         if role != current.role:
+            reason = (f"the outstanding assignment belongs to "
+                      f"{current.role!r}, not {role!r}")
+            self.store.append_event(TranscriptEvent(
+                event="rejected", role=current.role,
+                detail=f"{reason} (submitted as {role!r})"))
             return SubmitResponse(
                 accepted=False, attempts_remaining=self._remaining(current),
-                reason=f"the outstanding assignment belongs to "
-                       f"{current.role!r}, not {role!r}")
+                reason=reason)
 
         self.store.append_event(TranscriptEvent(event="submitted", role=role))
 
@@ -123,6 +144,7 @@ class Council:
             outstanding=[r for r in roster.role_ids() if r not in signed],
             escalated=state.escalated, escalation_reason=state.escalation_reason,
             passes=len([e for e in self.store.events() if e.event == "submitted"]),
+            independence=INDEPENDENCE_STATEMENT,
         )
 
     # ---- internals -------------------------------------------------------

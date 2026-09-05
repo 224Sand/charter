@@ -87,3 +87,24 @@ def test_a_cold_council_resumes_the_identical_assignment(council, tmp_path):
     cold = Council(RecordStore(tmp_path), tmp_path)
     assert cold.next().assignment.role == expected.role
     assert cold.next().assignment.task_id == expected.task_id
+
+
+def test_status_discloses_the_independence_limitation(council):
+    council.next()
+    council.submit("developer", GOOD_CHANGE)
+    s = council.status()
+    assert isinstance(s.independence, str)
+    assert s.independence.strip()
+
+
+def test_a_wrong_role_submission_is_recorded_in_the_transcript(council):
+    council.next()
+    council.submit("qa", GOOD_CHANGE)
+    events = [e.event for e in council.store.events()]
+    assert "rejected" in events
+
+
+def test_a_submission_with_no_outstanding_assignment_is_recorded(council):
+    council.submit("developer", GOOD_CHANGE)
+    events = [e.event for e in council.store.events()]
+    assert "rejected" in events
