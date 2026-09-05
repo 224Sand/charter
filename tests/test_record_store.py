@@ -100,3 +100,12 @@ def test_transcript_events_have_timezone_aware_timestamps(store):
     assert events[0].at.tzinfo is not None, \
         "event timestamp must be timezone-aware after reload"
     assert events[0].at.tzinfo == timezone.utc
+
+
+def test_writers_refuse_a_store_that_was_never_initialised(tmp_path):
+    cold = RecordStore(tmp_path)
+    with pytest.raises(FileNotFoundError, match="charter init"):
+        cold.append_signoff(_signoff())
+    with pytest.raises(FileNotFoundError, match="charter init"):
+        cold.append_event(TranscriptEvent(event="issued", role="qa"))
+    assert not (tmp_path / ".charter").exists(), "no partial state may be created"

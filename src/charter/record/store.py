@@ -83,7 +83,20 @@ class RecordStore:
                 f"{path} not found -- run `charter init` in this repository first")
         return path.read_text()
 
+    def _require_init(self) -> None:
+        """Writers must not conjure a half-built .charter/.
+
+        Appending to a store that was never init()-ed would leave signoffs and
+        a transcript describing a build with no roster and no idea on record --
+        an audit trail nothing can be checked against.
+        """
+        if not self.exists():
+            raise FileNotFoundError(
+                f"{self._charter} not found -- run `charter init` in this "
+                f"repository before recording anything")
+
     def _append(self, path: Path, row: dict) -> None:
+        self._require_init()
         self.root.mkdir(parents=True, exist_ok=True)
         with path.open("a") as fh:
             fh.write(json.dumps(row) + "\n")

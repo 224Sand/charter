@@ -32,9 +32,9 @@ def _check_files(repo: Path, names: list[str]) -> ValidationResult:
         if resolved is None:
             return ValidationResult.reject(
                 f"{name!r} resolves outside the repository")
-        if not resolved.exists():
+        if not resolved.is_file():
             return ValidationResult.reject(
-                f"{name!r} does not exist in the repository")
+                f"{name!r} is not a file in the repository")
     return ValidationResult.ok()
 
 

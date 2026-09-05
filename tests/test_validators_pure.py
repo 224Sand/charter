@@ -39,3 +39,12 @@ def test_threat_entry_rejects_files_outside_the_repo(tmp_path):
     result = validate_threat_entry(art, tmp_path)
     assert not result.accepted
     assert "outside the repository" in result.reason
+
+
+def test_a_directory_is_not_accepted_as_a_cited_file(tmp_path):
+    (tmp_path / "pkg").mkdir()
+    art = ChangeSummary(kind="change_summary", files=["pkg"],
+                        decision_ref="D-1", summary="cited a directory")
+    result = validate_change_summary(art, tmp_path)
+    assert not result.accepted
+    assert "not a file" in result.reason

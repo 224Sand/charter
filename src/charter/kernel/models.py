@@ -6,7 +6,7 @@ model's, so the kernel stays a pure, exhaustively testable core.
 """
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ArtifactKind(str, Enum):
@@ -20,6 +20,10 @@ class ArtifactKind(str, Enum):
 class RoleDef(BaseModel):
     """One role's lens and the contract it owes."""
 
+    # A mistyped key in a hand-written YAML definition must fail loudly
+    # rather than silently falling back to a default.
+    model_config = ConfigDict(extra="forbid")
+
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
     brief: str = Field(min_length=1)
@@ -29,6 +33,10 @@ class RoleDef(BaseModel):
 
 class MethodologyDef(BaseModel):
     """A methodology: the phases it runs and the roles it activates."""
+
+    # A mistyped key in a hand-written YAML definition must fail loudly
+    # rather than silently falling back to a default.
+    model_config = ConfigDict(extra="forbid")
 
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
