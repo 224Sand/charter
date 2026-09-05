@@ -27,28 +27,59 @@ def _seed(repo):
 
 
 def test_a_full_governed_build_reaches_done(tmp_path):
+    """The v2 flow: the developer works in the main session, the reviewing
+    roles sign off from their own. Two Handlers means two connection ids,
+    which is what the independence gate is checking."""
     _seed(tmp_path)
-    h = Handlers(tmp_path)
-    h.init(idea="harden the login path", methodology="scrum")
+    main = Handlers(tmp_path)          # where the code gets written
+    review = Handlers(tmp_path)        # a separate charter session
+    assert main.connection_id != review.connection_id
 
-    assert json.loads(h.next())["assignment"]["role"] == "developer"
-    assert json.loads(h.submit("developer", {
+    main.init(idea="harden the login path", methodology="scrum")
+
+    assert json.loads(main.next())["assignment"]["role"] == "developer"
+    assert json.loads(main.submit("developer", {
         "kind": "change_summary", "files": ["app.py"],
         "decision_ref": "D-1", "summary": "login query built from raw input"}))["accepted"]
 
-    assert json.loads(h.next())["assignment"]["role"] == "qa"
-    assert json.loads(h.submit("qa", {
+    assert json.loads(review.next())["assignment"]["role"] == "qa"
+    assert json.loads(review.submit("qa", {
         "kind": "failing_test", "test_path": "tests/test_login.py",
         "test_name": "test_login_is_parameterised", "defect_id": "D-1"}))["accepted"]
 
-    assert json.loads(h.next())["assignment"]["role"] == "appsec"
-    assert json.loads(h.submit("appsec", {
+    assert json.loads(review.next())["assignment"]["role"] == "appsec"
+    assert json.loads(review.submit("appsec", {
         "kind": "threat_entry", "cwe_id": "CWE-89",
         "attack_path": "login() interpolates the username straight into SQL, so "
                        "a crafted username changes the query.",
         "affected_files": ["app.py"]}))["accepted"]
 
-    assert json.loads(h.next())["kind"] == "done"
+    assert json.loads(review.next())["kind"] == "done"
+
+
+def test_one_session_playing_every_role_is_refused(tmp_path):
+    """v1's whole gap: one agent writing, reviewing and approving its own work.
+
+    This is the assertion v2 exists for -- it passed silently in v1.
+    """
+    _seed(tmp_path)
+    solo = Handlers(tmp_path)
+    solo.init(idea="harden the login path", methodology="scrum")
+
+    solo.next()
+    assert json.loads(solo.submit("developer", {
+        "kind": "change_summary", "files": ["app.py"],
+        "decision_ref": "D-1", "summary": "login query built from raw input"}))["accepted"]
+
+    solo.next()
+    result = json.loads(solo.submit("qa", {
+        "kind": "failing_test", "test_path": "tests/test_login.py",
+        "test_name": "test_login_is_parameterised", "defect_id": "D-1"}))
+    assert not result["accepted"]
+    assert "same process" in result["reason"]
+
+    # and nothing was recorded: the build has only the developer's sign-off
+    assert json.loads(solo.status())["signed_off"] == ["developer"]
 
 
 def test_the_build_survives_losing_every_bit_of_memory(tmp_path):

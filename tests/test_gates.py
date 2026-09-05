@@ -13,14 +13,14 @@ def _s(role, producer, sha="abc123"):
     return Signoff(role=role, producer_role=producer, artifact=ART, tree_sha=sha)
 
 
-def test_a_role_may_not_sign_off_its_own_work():
-    result = no_self_signoff(_s("developer", "developer"))
-    assert not result.allowed
-    assert "own work" in result.reason
-
-
-def test_a_different_role_may_sign_off():
-    assert no_self_signoff(_s("qa", "developer")).allowed
+def test_the_gate_no_longer_relies_on_the_v1_producer_role_label():
+    """v1 compared role labels via a hardcoded convention whose values could
+    never collide, so the gate passed everything. Identity replaced it; a
+    sign-off carrying only the old label must not be treated as verified."""
+    legacy = Signoff(role="qa", producer_role="developer", artifact=ART,
+                     tree_sha="abc123")
+    result = no_self_signoff(legacy, [_s2("developer", "conn-a")], ROSTER)
+    assert not result.allowed, "a label-only sign-off must not pass as independent"
 
 
 def test_a_signoff_against_a_changed_tree_is_stale():
@@ -51,3 +51,45 @@ def test_coverage_ignores_signoffs_against_an_older_tree():
     signoffs = [_s(r, "someone_else", sha="old") for r in roster.role_ids()]
     result = role_coverage(roster, signoffs, "new")
     assert not result.allowed
+
+
+# ---- v2: identity-based independence -----------------------------------
+
+ROSTER = roster_for("scrum", load_methodologies(), load_roles())
+
+
+def _s2(role, conn, sha="abc123"):
+    return Signoff(role=role, artifact=ART, tree_sha=sha, connection_id=conn)
+
+
+def test_a_reviewer_from_the_same_process_as_the_developer_is_blocked():
+    dev = _s2("developer", "conn-a")
+    qa = _s2("qa", "conn-a")
+    result = no_self_signoff(qa, [dev], ROSTER)
+    assert not result.allowed
+    assert "same process" in result.reason
+
+
+def test_a_reviewer_from_a_different_process_is_allowed():
+    dev = _s2("developer", "conn-a")
+    assert no_self_signoff(_s2("qa", "conn-b"), [dev], ROSTER).allowed
+
+
+def test_a_missing_id_reports_unavailable_and_blocks_rather_than_passing():
+    dev = _s2("developer", None)
+    result = no_self_signoff(_s2("qa", "conn-b"), [dev], ROSTER)
+    assert not result.allowed
+    assert "unavailable" in result.reason.lower()
+
+    result = no_self_signoff(_s2("qa", None), [_s2("developer", "conn-a")], ROSTER)
+    assert not result.allowed
+    assert "unavailable" in result.reason.lower()
+
+
+def test_the_developers_own_pass_has_nothing_to_be_independent_of():
+    assert no_self_signoff(_s2("developer", "conn-a"), [], ROSTER).allowed
+
+
+def test_a_stale_developer_signoff_does_not_constrain_a_new_tree():
+    old_dev = _s2("developer", "conn-a", sha="old")
+    assert no_self_signoff(_s2("qa", "conn-a", sha="new"), [old_dev], ROSTER).allowed

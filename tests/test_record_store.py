@@ -109,3 +109,29 @@ def test_writers_refuse_a_store_that_was_never_initialised(tmp_path):
     with pytest.raises(FileNotFoundError, match="charter init"):
         cold.append_event(TranscriptEvent(event="issued", role="qa"))
     assert not (tmp_path / ".charter").exists(), "no partial state may be created"
+
+
+# ---- v2: identity on the record ----------------------------------------
+
+V1_ROW = {
+    "role": "qa", "producer_role": "developer", "tree_sha": "abc123",
+    "at": "2026-09-01T10:00:00+00:00",
+    "artifact": {"kind": "change_summary", "files": ["a.py"],
+                 "decision_ref": "D-1", "summary": "x"},
+}
+
+
+def test_a_v1_signoff_without_a_connection_id_still_loads(tmp_path):
+    """Old records must remain readable, and must not look independent.
+
+    A v1 row that silently satisfied the v2 gate would be exactly the failure
+    this project exists to prevent.
+    """
+    s = Signoff(**V1_ROW)
+    assert s.role == "qa"
+    assert s.connection_id is None
+
+
+def test_a_connection_id_survives_the_round_trip(store):
+    store.append_signoff(_signoff().model_copy(update={"connection_id": "conn-a"}))
+    assert store.signoffs()[0].connection_id == "conn-a"

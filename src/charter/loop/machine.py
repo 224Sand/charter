@@ -124,10 +124,11 @@ class Council:
         if not result.accepted:
             return self._reject(state, current, result.reason)
 
-        producer = self._producer_for(current.role)
-        signoff = Signoff(role=current.role, producer_role=producer,
-                          artifact=artifact, tree_sha=tree_sha(self.repo))
-        gate = no_self_signoff(signoff)
+        signoff = Signoff(role=current.role, artifact=artifact,
+                          tree_sha=tree_sha(self.repo),
+                          connection_id=self.connection_id)
+        gate = no_self_signoff(signoff, self.store.signoffs(),
+                               self.store.load_roster())
         if not gate.allowed:
             return self._reject(state, current, gate.reason)
 
@@ -165,15 +166,6 @@ class Council:
                 f"Before you may sign off you must submit a "
                 f"`{role.contract.value}` artifact via charter.submit()."),
         )
-
-    def _producer_for(self, role: str) -> str:
-        """Who produced the work this role is approving.
-
-        v1 convention: the developer produces, everyone else reviews. Recorded
-        explicitly so `no_self_signoff` has something real to check and so the
-        rule keeps working unchanged when v2 runs one session per role.
-        """
-        return "developer" if role != "developer" else "author"
 
     def _remaining(self, current: Assignment) -> int:
         return max(MAX_ATTEMPTS - current.attempt, 0)

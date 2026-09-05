@@ -30,9 +30,14 @@ class Signoff(BaseModel):
     """A role's accepted approval, with the evidence that earned it."""
 
     role: str
-    producer_role: str
     artifact: Artifact
     tree_sha: str
+    # None means this sign-off predates v2 (or no id was supplied). The
+    # independence gate reports that as UNAVAILABLE, never as a pass.
+    connection_id: str | None = None
+    # v1 field. Retained so v1 records still parse; no longer consulted --
+    # the synthetic convention it encoded is what v2 replaced.
+    producer_role: str | None = None
     at: datetime = Field(default_factory=_now)
 
 
