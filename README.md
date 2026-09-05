@@ -11,27 +11,34 @@ The calling agent does all the execution. Charter is the conductor and the memor
 
 ## Install
 
-```bash
-uvx charter --help
+**Claude Code (recommended)** — one step, and it installs the server *and* the skill that
+drives it:
+
+```
+/plugin marketplace add 224Sand/charter
+/plugin install charter@charter
 ```
 
-Add to your MCP config:
+The two halves matter. The MCP server only answers when asked; it cannot push. Something has
+to tell the calling agent to keep calling `charter_next` until the build is `done`, and that
+is the bundled skill. Install the server without it and you get four tools nobody calls.
+
+**Cursor, Codex, or manual MCP config:**
 
 ```json
-{ "mcpServers": { "charter": { "command": "uvx", "args": ["charter", "serve"] } } }
+{ "mcpServers": { "charter": { "command": "uvx",
+    "args": ["--from", "git+https://github.com/224Sand/charter", "charter", "serve"] } } }
 ```
 
-The MCP server only answers when asked — it cannot push. So the calling agent needs to
-know, on its own, to keep calling `charter_next` until the build is `done`. Generate that
-instruction file once, into your project's skills directory:
+Then generate the skill yourself, since nothing else will:
 
 ```bash
 charter gen-skill --dest .claude/skills/charter
 ```
 
-This writes `SKILL.md`, rendered directly from the same role and methodology
-definitions the kernel enforces — so the instructions your agent reads and the rules it
-is actually held to can never drift apart. Re-run it whenever the role library changes.
+`SKILL.md` is rendered from the same role and methodology definitions the kernel enforces, so
+the instructions your agent reads and the rules it is held to cannot drift apart. That is
+checked, not asserted: `tests/test_plugin.py` fails if the shipped copy goes stale.
 
 ## Use
 

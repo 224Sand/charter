@@ -1,0 +1,10 @@
+{
+  "name": "charter",
+  "version": "0.1.0",
+  "description": "Governs an AI coding agent through a delivery lifecycle: each named role must produce a machine-checkable artifact before it may sign off, and the build record survives on disk across sessions.",
+  "author": { "name": "Sandeep Chavan" },
+  "repository": "https://github.com/224Sand/charter",
+  "homepage": "https://github.com/224Sand/charter#readme",
+  "license": "MIT",
+  "keywords": ["claude-code", "mcp", "governance", "sdlc", "code-review", "qa", "appsec", "agile"]
+}

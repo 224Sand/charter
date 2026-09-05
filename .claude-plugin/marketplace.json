@@ -1,0 +1,14 @@
+{
+  "name": "charter",
+  "description": "Governed multi-role delivery for AI coding agents",
+  "owner": { "name": "Sandeep Chavan" },
+  "plugins": [
+    {
+      "name": "charter",
+      "description": "Governs an AI coding agent through a delivery lifecycle: roles derived from methodology, a checkable artifact required before any sign-off, and a resumable build record on disk.",
+      "version": "0.1.0",
+      "source": "./",
+      "author": { "name": "Sandeep Chavan" }
+    }
+  ]
+}

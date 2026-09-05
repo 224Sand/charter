@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "charter": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/224Sand/charter", "charter", "serve"]
+    }
+  }
+}
