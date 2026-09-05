@@ -44,3 +44,19 @@ def test_mcp_config_registers_the_charter_server():
     server = cfg["mcpServers"]["charter"]
     assert server["type"] == "stdio", "charter governs local files; it cannot be remote"
     assert "serve" in server["args"]
+
+
+def test_the_independence_statement_names_its_own_limits():
+    """Charter's ethic is claiming exactly what is proven.
+
+    A statement that only advertises the guarantee, with no mention of what
+    defeats it, is the overclaim this project keeps catching in itself.
+    """
+    from charter.loop.machine import INDEPENDENCE_STATEMENT
+
+    lowered = INDEPENDENCE_STATEMENT.lower()
+    assert "separate process" in lowered, "must say what it does prove"
+    assert "not proof" in lowered or "does not prove" in lowered, (
+        "must say what it does NOT prove")
+    for limit in ("restart", "clicking through"):
+        assert limit in lowered, f"limit {limit!r} is not disclosed"

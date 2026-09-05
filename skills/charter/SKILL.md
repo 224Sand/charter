@@ -9,10 +9,18 @@ description: Run a build under a governed role charter. Use whenever starting or
 # Charter
 
 You are working under a role charter. Each role must submit its own contract artifact
-before it may sign off. Roles are separated by label and artifact-of-record, not
-identity-verified — in this v1 configuration every role is played by the same calling
-agent, so what carries the weight is that each role produces its own distinct,
-checkable work product.
+before it may sign off, and a reviewing role must run in its own charter session.
+
+Charter stamps every connection with an id you cannot set, and refuses a review
+submitted from the same connection that produced the work. So a sign-off proves it came
+from a separate process, and carries its own checkable artifact. It does not prove
+independent reasoning: a restart, or a person clicking through two sessions without
+reading, satisfies the mechanism. The artifact is what carries the weight.
+
+**In practice:** do the building work in this session. When `charter_next` hands you a
+reviewing role and your submission is refused as coming from the same process, that is
+not a bug — open a second Claude Code session on this repository and submit the review
+from there.
 
 ## The loop
 

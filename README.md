@@ -76,6 +76,23 @@ checkable artifact before it may sign off. `charter_status` reports this same li
 back to you as `independence`, so it is never mistaken for a stronger guarantee than the
 mechanism provides.
 
+## What the role separation proves
+
+Charter stamps every server connection with an id the caller cannot set, records it on
+each sign-off, and **refuses a review submitted from the same connection that produced the
+work**. The practical shape: do the building in your main session, and run reviewing roles
+from a second session on the same repository.
+
+That proves a sign-off came from a separate process, and it still carries its own
+checkable artifact. It does **not** prove independent reasoning — a server restart, an
+agent deliberately restarting it, or a person clicking through two sessions without
+reading all satisfy the mechanism. The artifact contract is what carries the weight;
+identity raises the cost of collapsing the roles, it does not make it impossible.
+
+`charter status` reports how many passes were issued and rejected, how many distinct
+connections signed off, and how many bytes charter handed over — so a review pass that
+starts getting expensive is visible before your bill is.
+
 ## One deployment requirement
 
 QA's `failing_test` contract works by actually running the named test, so **charter must run

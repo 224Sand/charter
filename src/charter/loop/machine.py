@@ -27,10 +27,14 @@ from charter.vcs import tree_sha
 MAX_ATTEMPTS = 3
 
 INDEPENDENCE_STATEMENT = (
-    "roles are separated by label, and each must submit its own contract "
-    "artifact before it may sign off; but every role in this build is played "
-    "by the same calling agent, so independence here is structural (label "
-    "and artifact-of-record), not identity-verified."
+    "reviewing roles are checked against the process that produced the work"
+    ": charter stamps each server connection with an id the caller cannot s"
+    "et, and refuses a review submitted from the same connection as the dev"
+    "eloper. So a sign-off is proven to come from a separate process, and s"
+    "till carries its own checkable artifact. It is NOT proof of independen"
+    "t reasoning -- a server restart, an agent deliberately restarting it, "
+    "or a human clicking through two sessions without reading all satisfy t"
+    "he mechanism."
 )
 
 
