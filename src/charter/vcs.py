@@ -31,7 +31,16 @@ def tree_sha(repo: Path) -> str:
 
     digest = hashlib.sha256()
     for path in sorted(Path(repo).rglob("*")):
-        if path.is_file() and ".charter" not in path.parts and ".git" not in path.parts:
+        if path.is_file() and not _EXCLUDED_DIRS.intersection(path.parts):
             digest.update(path.name.encode())
             digest.update(str(path.stat().st_mtime_ns).encode())
     return digest.hexdigest()[:12]
+
+
+# Directories whose contents are build/tooling side effects, not tree content:
+# ".charter" is charter's own state, ".git" is version control metadata, and
+# "__pycache__" / ".pytest_cache" are written by the *validators themselves*
+# (validate_failing_test shells out to pytest against the repo) -- without
+# this exclusion, running the QA validator would silently invalidate the
+# developer's sign-off on the very same tree by changing its mtime-hash.
+_EXCLUDED_DIRS = {".charter", ".git", "__pycache__", ".pytest_cache"}
