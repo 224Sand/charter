@@ -63,60 +63,74 @@ class Handlers:
         return json.dumps({"error": message}, indent=2)
 
 
+# Module-level handler functions that are testable without a server object.
+# These are parameterized by handlers and can be imported and called directly
+# by tests. The MCP decorators return the original undecorated functions,
+# so these remain plain awaitable async functions after registration.
+
+async def _list_tools_impl(handlers: Handlers):
+    """List the four charter tools."""
+    from mcp.types import Tool
+
+    return [
+        Tool(name="charter_init",
+             description="Start a governed build in this repository.",
+             inputSchema={"type": "object", "properties": {
+                 "idea": {"type": "string"},
+                 "methodology": {"type": "string", "default": "scrum"}},
+                 "required": ["idea"]}),
+        Tool(name="charter_next",
+             description="Get the next role assignment and its contract.",
+             inputSchema={"type": "object", "properties": {}}),
+        Tool(name="charter_submit",
+             description="Submit a role's artifact for validation.",
+             inputSchema={"type": "object", "properties": {
+                 "role": {"type": "string"},
+                 "artifact": {"type": "object"}},
+                 "required": ["role", "artifact"]}),
+        Tool(name="charter_status",
+             description="Report roster, sign-offs and outstanding roles.",
+             inputSchema={"type": "object", "properties": {}}),
+    ]
+
+
+async def _call_tool_impl(handlers: Handlers, name: str, arguments: dict):
+    """Dispatch a tool call to the appropriate handler."""
+    from mcp.types import TextContent
+
+    try:
+        fn = {"charter_init": handlers.init, "charter_next": handlers.next,
+              "charter_submit": handlers.submit,
+              "charter_status": handlers.status}[name]
+    except KeyError:
+        error_response = json.dumps({
+            "error": f"unknown tool '{name}' -- available tools are: "
+            "charter_init, charter_next, charter_submit, charter_status"
+        }, indent=2)
+        return [TextContent(type="text", text=error_response)]
+    try:
+        result = fn(**arguments)
+    except TypeError as e:
+        error_response = json.dumps({
+            "error": f"invalid arguments for {name}: {str(e)}"
+        }, indent=2)
+        return [TextContent(type="text", text=error_response)]
+    return [TextContent(type="text", text=result)]
+
+
 def build_server(repo: Path):
     """Wire the handlers onto an MCP server."""
     from mcp.server import Server
-    from mcp.types import TextContent, Tool
 
     handlers = Handlers(repo)
     server = Server("charter")
 
     @server.list_tools()
-    async def list_tools() -> list[Tool]:
-        return [
-            Tool(name="charter_init",
-                 description="Start a governed build in this repository.",
-                 inputSchema={"type": "object", "properties": {
-                     "idea": {"type": "string"},
-                     "methodology": {"type": "string", "default": "scrum"}},
-                     "required": ["idea"]}),
-            Tool(name="charter_next",
-                 description="Get the next role assignment and its contract.",
-                 inputSchema={"type": "object", "properties": {}}),
-            Tool(name="charter_submit",
-                 description="Submit a role's artifact for validation.",
-                 inputSchema={"type": "object", "properties": {
-                     "role": {"type": "string"},
-                     "artifact": {"type": "object"}},
-                     "required": ["role", "artifact"]}),
-            Tool(name="charter_status",
-                 description="Report roster, sign-offs and outstanding roles.",
-                 inputSchema={"type": "object", "properties": {}}),
-        ]
+    async def list_tools():
+        return await _list_tools_impl(handlers)
 
     @server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-        try:
-            fn = {"charter_init": handlers.init, "charter_next": handlers.next,
-                  "charter_submit": handlers.submit,
-                  "charter_status": handlers.status}[name]
-        except KeyError:
-            error_response = json.dumps({
-                "error": f"unknown tool '{name}' -- available tools are: "
-                "charter_init, charter_next, charter_submit, charter_status"
-            }, indent=2)
-            return [TextContent(type="text", text=error_response)]
-        try:
-            result = fn(**arguments)
-        except TypeError as e:
-            error_response = json.dumps({
-                "error": f"invalid arguments for {name}: {str(e)}"
-            }, indent=2)
-            return [TextContent(type="text", text=error_response)]
-        return [TextContent(type="text", text=result)]
-
-    # Store references for testing (allows tests to call the real handlers)
-    server._test_list_tools = list_tools
-    server._test_call_tool = call_tool
+    async def call_tool(name: str, arguments: dict):
+        return await _call_tool_impl(handlers, name, arguments)
 
     return server
