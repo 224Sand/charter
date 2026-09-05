@@ -1,6 +1,6 @@
 # Charter v2 — Independent Review Without the Token Bill
 
-**Status:** Design — awaiting approval
+**Status:** Approved 2026-09-05 — decision #1 locked to *block*; plan at [../plans/2026-09-05-charter-v2.md](../plans/2026-09-05-charter-v2.md)
 **Date:** 2026-09-05
 **Builds on:** [v1 design](2026-09-05-governed-delivery-mcp-design.md) §7.4, which deferred genuine independence to v2
 
@@ -179,7 +179,7 @@ project exists to prevent.
 
 | # | Decision | Recommendation |
 |---|---|---|
-| 1 | Does a missing second session **block** or **warn**? | **Block**, with a clear message naming what to do. A warning that can be ignored is v1's problem again. |
+| 1 | Does a missing second session **block** or **warn**? | **BLOCK — locked 2026-09-05.** A warning that can be ignored is v1's problem again. The block message must name exactly what to do. |
 | 2 | Byte ceiling for the `next()` payload | Start at 8 KB for the fixture build and tighten once real handovers are measured. The number matters less than having one. |
 | 3 | Does the developer role also need an id recorded? | **Yes** — it is the baseline every reviewer is compared against. It just never needs to be *different* from anything. |
 
