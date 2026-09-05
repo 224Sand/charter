@@ -21,6 +21,18 @@ Add to your MCP config:
 { "mcpServers": { "charter": { "command": "uvx", "args": ["charter", "serve"] } } }
 ```
 
+The MCP server only answers when asked — it cannot push. So the calling agent needs to
+know, on its own, to keep calling `charter_next` until the build is `done`. Generate that
+instruction file once, into your project's skills directory:
+
+```bash
+charter gen-skill --dest .claude/skills/charter
+```
+
+This writes `SKILL.md`, rendered directly from the same role and methodology
+definitions the kernel enforces — so the instructions your agent reads and the rules it
+is actually held to can never drift apart. Re-run it whenever the role library changes.
+
 ## Use
 
 ```bash

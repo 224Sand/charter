@@ -58,3 +58,38 @@ def test_tree_sha_changes_after_committing_the_edit(tmp_path):
     committed = tree_sha(tmp_path)
 
     assert committed != dirty
+
+
+def test_tree_sha_ignores_an_untracked_pycache_with_no_gitignore(tmp_path):
+    """The git branch's twin of the fallback bug: a freshly-scaffolded repo
+    may have no .gitignore yet, so an untracked __pycache__/ left behind by a
+    validator's own pytest subprocess shows up in `git status --porcelain` as
+    `?? __pycache__/`. That must not count as tree content, or the QA
+    validator's own test run would invalidate the developer's prior sign-off.
+    """
+    _init_repo(tmp_path)
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _commit(tmp_path, "init")
+
+    before = tree_sha(tmp_path)
+    cache_dir = tmp_path / "__pycache__"
+    cache_dir.mkdir()
+    (cache_dir / "a.cpython-311.pyc").write_bytes(b"\x00\x01")
+    after = tree_sha(tmp_path)
+
+    assert before == after
+
+
+def test_tree_sha_still_detects_a_real_edit_alongside_an_untracked_pycache(tmp_path):
+    """The exclusion above must not blunt genuine staleness detection."""
+    _init_repo(tmp_path)
+    (tmp_path / "a.py").write_text("x = 1\n")
+    _commit(tmp_path, "init")
+
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / "__pycache__" / "a.cpython-311.pyc").write_bytes(b"\x00\x01")
+    before = tree_sha(tmp_path)
+    (tmp_path / "a.py").write_text("x = 2\n")  # a real, tracked edit
+    after = tree_sha(tmp_path)
+
+    assert before != after

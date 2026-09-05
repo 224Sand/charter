@@ -28,3 +28,12 @@ packages = ["src/charter"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+filterwarnings = [
+    # typer<=0.27 imports click.utils.get_binary_stream/get_text_stream at
+    # module load time; both are deprecated aliases in Click >=8.2 that will
+    # be removed in Click 9.0. This is upstream typer/click noise from
+    # importing charter.cli, not anything charter does -- scoped to the exact
+    # messages so a real DeprecationWarning elsewhere still surfaces.
+    "ignore:'click.utils.get_binary_stream' is deprecated:DeprecationWarning",
+    "ignore:'click.utils.get_text_stream' is deprecated:DeprecationWarning",
+]
