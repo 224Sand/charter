@@ -20,6 +20,11 @@ class Handlers:
         self.store = RecordStore(self.repo)
 
     def init(self, idea: str, methodology: str = "scrum") -> str:
+        if self.store.exists():
+            return self._error(
+                f"charter already exists in this repository at {self.store.root} -- "
+                "call charter_status to see the current build, or delete the state "
+                "directory and try again")
         methodologies = load_methodologies()
         try:
             roster = roster_for(methodology, methodologies, load_roles())
@@ -91,9 +96,23 @@ def build_server(repo: Path):
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-        fn = {"charter_init": handlers.init, "charter_next": handlers.next,
-              "charter_submit": handlers.submit,
-              "charter_status": handlers.status}[name]
-        return [TextContent(type="text", text=fn(**arguments))]
+        try:
+            fn = {"charter_init": handlers.init, "charter_next": handlers.next,
+                  "charter_submit": handlers.submit,
+                  "charter_status": handlers.status}[name]
+        except KeyError:
+            error_response = json.dumps({
+                "error": f"unknown tool '{name}' -- available tools are: "
+                "charter_init, charter_next, charter_submit, charter_status"
+            }, indent=2)
+            return [TextContent(type="text", text=error_response)]
+        try:
+            result = fn(**arguments)
+        except TypeError as e:
+            error_response = json.dumps({
+                "error": f"invalid arguments for {name}: {str(e)}"
+            }, indent=2)
+            return [TextContent(type="text", text=error_response)]
+        return [TextContent(type="text", text=result)]
 
     return server
