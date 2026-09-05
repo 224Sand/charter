@@ -5,6 +5,7 @@ the transport so the tool behaviour is testable without an MCP client.
 """
 import json
 from pathlib import Path
+from uuid import uuid4
 
 from charter.kernel.methodology import UnknownMethodology, roster_for
 from charter.library import load_methodologies, load_roles
@@ -18,6 +19,10 @@ class Handlers:
     def __init__(self, repo: Path):
         self.repo = Path(repo)
         self.store = RecordStore(self.repo)
+        # One stdio connection is one server process is one identity. Generated
+        # here and never accepted as an argument -- that is the whole reason a
+        # caller cannot forge it (see the v2 design, section 6).
+        self.connection_id = uuid4().hex
 
     def init(self, idea: str, methodology: str = "scrum") -> str:
         if self.store.exists():
@@ -57,7 +62,7 @@ class Handlers:
         return self._council().status().model_dump_json(indent=2)
 
     def _council(self) -> Council:
-        return Council(self.store, self.repo)
+        return Council(self.store, self.repo, self.connection_id)
 
     def _error(self, message: str) -> str:
         return json.dumps({"error": message}, indent=2)

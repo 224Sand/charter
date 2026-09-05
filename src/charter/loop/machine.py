@@ -60,9 +60,14 @@ class StatusResponse(BaseModel):
 
 
 class Council:
-    def __init__(self, store: RecordStore, repo: Path):
+    def __init__(self, store: RecordStore, repo: Path,
+                 connection_id: str | None = None):
         self.store = store
         self.repo = Path(repo)
+        # Stamped on every sign-off this process records. None means the caller
+        # did not supply one, which the independence gate reports as
+        # unavailable rather than treating as a pass.
+        self.connection_id = connection_id
 
     # ---- public API ------------------------------------------------------
     def next(self) -> NextResponse:

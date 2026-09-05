@@ -243,3 +243,41 @@ def test_build_server_instantiates(tmp_path):
     # Verify server is created successfully
     assert server is not None
     assert str(type(server)).find("Server") >= 0  # It's a Server instance
+
+
+# ---- v2: connection identity -------------------------------------------
+
+def test_each_handlers_instance_gets_its_own_connection_id(tmp_path):
+    """One stdio connection is one server process is one identity.
+
+    A constant, or an id derived from the repo, would make two sessions look
+    like one and quietly re-open the hole v2 exists to close.
+    """
+    a, b = Handlers(tmp_path), Handlers(tmp_path)
+    assert a.connection_id and b.connection_id
+    assert a.connection_id != b.connection_id
+
+
+def test_the_council_is_built_with_the_handlers_connection_id(tmp_path):
+    h = Handlers(tmp_path)
+    assert h._council().connection_id == h.connection_id
+
+
+def test_no_tool_argument_can_set_the_connection_id(tmp_path):
+    """The id is unforgeable only because the caller never supplies it."""
+    import asyncio
+    from charter.mcp_server import _list_tools_impl, _call_tool_impl
+
+    tools = asyncio.run(_list_tools_impl(Handlers(tmp_path)))
+    for tool in tools:
+        props = tool.inputSchema.get("properties", {})
+        assert "connection_id" not in props, (
+            f"{tool.name} exposes connection_id as an argument")
+
+    h = Handlers(tmp_path)
+    h.init(idea="x", methodology="scrum")
+    before = h.connection_id
+    response = asyncio.run(
+        _call_tool_impl(h, "charter_status", {"connection_id": "forged"}))
+    assert "invalid arguments" in response[0].text
+    assert h.connection_id == before
