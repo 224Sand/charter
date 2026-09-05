@@ -17,7 +17,8 @@ from pydantic import BaseModel, ValidationError
 
 from charter.contracts.models import parse_artifact
 from charter.contracts.validators import validate
-from charter.gates.checks import no_self_signoff, role_coverage
+from charter.gates.checks import (_PRODUCER_ROLE, no_self_signoff,
+                                  role_coverage)
 from charter.kernel.models import ArtifactKind
 from charter.record.models import Assignment, Signoff, TranscriptEvent
 from charter.record.store import RecordStore
@@ -31,6 +32,17 @@ INDEPENDENCE_STATEMENT = (
     "by the same calling agent, so independence here is structural (label "
     "and artifact-of-record), not identity-verified."
 )
+
+
+
+def _cited_paths(artifact) -> list[str]:
+    """The paths an artifact names, whatever kind it is."""
+    for field in ("files", "affected_files"):
+        if hasattr(artifact, field):
+            return list(getattr(artifact, field))
+    if hasattr(artifact, "test_path"):
+        return [artifact.test_path]
+    return []
 
 
 class NextResponse(BaseModel):
@@ -56,6 +68,13 @@ class StatusResponse(BaseModel):
     escalated: bool
     escalation_reason: str = ""
     passes: int
+    # What the handover is costing. Not token counts -- charter cannot see the
+    # model's billing -- but bytes handed over is the quantity charter controls,
+    # and it is the leading indicator of a handover that has started to bloat.
+    passes_issued: int = 0
+    passes_rejected: int = 0
+    bytes_handed_over: int = 0
+    distinct_connections: int = 0
     independence: str = INDEPENDENCE_STATEMENT
 
 
@@ -142,6 +161,7 @@ class Council:
         state = self.store.load_state()
         roster = self.store.load_roster()
         sha = tree_sha(self.repo)
+        events = self.store.events()
         signed = [s.role for s in self.store.signoffs() if s.tree_sha == sha]
         return StatusResponse(
             phase=state.phase, task_id=state.task_id,
@@ -150,21 +170,41 @@ class Council:
             outstanding=[r for r in roster.role_ids() if r not in signed],
             escalated=state.escalated, escalation_reason=state.escalation_reason,
             passes=len([e for e in self.store.events() if e.event == "submitted"]),
+            passes_issued=len([e for e in events if e.event == "issued"]),
+            passes_rejected=len([e for e in events if e.event == "rejected"]),
+            bytes_handed_over=(
+                len(state.current.model_dump_json().encode())
+                if state.current is not None else 0),
+            distinct_connections=len(
+                {s.connection_id for s in self.store.signoffs()
+                 if s.connection_id is not None}),
             independence=INDEPENDENCE_STATEMENT,
         )
 
     # ---- internals -------------------------------------------------------
     def _issue(self, roster, state, sha: str) -> Assignment:
-        signed = {s.role for s in self.store.signoffs() if s.tree_sha == sha}
+        signoffs = self.store.signoffs()
+        signed = {s.role for s in signoffs if s.tree_sha == sha}
         role = next(r for r in roster.roles if r.id not in signed)
+        produced = next(
+            (s for s in signoffs
+             if s.role == _PRODUCER_ROLE and s.tree_sha == sha), None)
+        reviewing = produced.artifact if (
+            produced and role.id != _PRODUCER_ROLE) else None
+        cited = _cited_paths(reviewing) if reviewing else []
         return Assignment(
+            reviewing=reviewing, cited_paths=cited,
             role=role.id, phase=state.phase, task_id=state.task_id,
             contract=role.contract.value, attempt=1,
             instruction=(
                 f"You are {role.name}. {role.brief}\n\n"
                 f"Phase: {state.phase}. Task: {state.task_id}.\n"
                 f"Before you may sign off you must submit a "
-                f"`{role.contract.value}` artifact via charter.submit()."),
+                f"`{role.contract.value}` artifact via charter.submit()."
+                + (f"\n\nUnder review: a {reviewing.kind} citing "
+                   f"{', '.join(cited)}. Open those files yourself -- charter "
+                   f"hands over references, not contents."
+                   if reviewing else "")),
         )
 
     def _remaining(self, current: Assignment) -> int:

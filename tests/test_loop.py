@@ -108,3 +108,67 @@ def test_a_submission_with_no_outstanding_assignment_is_recorded(council):
     council.submit("developer", GOOD_CHANGE)
     events = [e.event for e in council.store.events()]
     assert "rejected" in events
+
+
+# ---- v2: bounded handover ----------------------------------------------
+
+MARKER = "SUPER_SECRET_FILE_BODY_MARKER"
+
+
+def test_a_reviewer_is_told_what_it_is_reviewing(tmp_path):
+    """A cold review session has no context but the record.
+
+    Without the producer's artifact and its cited paths, a reviewing role in
+    its own session is asked to review something it was never shown.
+    """
+    roster = roster_for("scrum", load_methodologies(), load_roles())
+    store = RecordStore(tmp_path)
+    store.init(roster, idea="x", phase="implementation")
+    (tmp_path / "a.py").write_text(f"# {MARKER}\n")
+
+    dev = Council(store, tmp_path, "conn-dev")
+    dev.next()
+    dev.submit("developer", GOOD_CHANGE)
+
+    review = Council(store, tmp_path, "conn-review")
+    assignment = review.next().assignment
+    assert assignment.role == "qa"
+    assert assignment.reviewing is not None, "reviewer was shown nothing"
+    assert assignment.reviewing.kind == "change_summary"
+    assert assignment.cited_paths == ["a.py"]
+
+
+def test_the_handover_carries_paths_never_file_contents(tmp_path):
+    """The reviewer opens the files itself. Charter hands over references."""
+    roster = roster_for("scrum", load_methodologies(), load_roles())
+    store = RecordStore(tmp_path)
+    store.init(roster, idea="x", phase="implementation")
+    (tmp_path / "a.py").write_text(f"# {MARKER}\n")
+
+    dev = Council(store, tmp_path, "conn-dev")
+    dev.next()
+    dev.submit("developer", GOOD_CHANGE)
+
+    payload = Council(store, tmp_path, "conn-review").next().model_dump_json()
+    assert MARKER not in payload, "file contents leaked into the handover"
+    assert len(payload.encode()) < 8192, (
+        f"handover is {len(payload.encode())} bytes, over the 8 KB ceiling")
+
+
+def test_status_reports_what_the_handover_is_costing(tmp_path):
+    roster = roster_for("scrum", load_methodologies(), load_roles())
+    store = RecordStore(tmp_path)
+    store.init(roster, idea="x", phase="implementation")
+    (tmp_path / "a.py").write_text("x = 1\n")
+
+    dev = Council(store, tmp_path, "conn-dev")
+    dev.next()
+    dev.submit("developer", BAD_CHANGE)      # rejected
+    dev.submit("developer", GOOD_CHANGE)     # accepted
+    Council(store, tmp_path, "conn-review").next()
+
+    s = Council(store, tmp_path, "conn-review").status()
+    assert s.passes_issued >= 2
+    assert s.passes_rejected == 1
+    assert s.distinct_connections == 1       # only accepted sign-offs count
+    assert s.bytes_handed_over > 0

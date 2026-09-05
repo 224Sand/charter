@@ -24,6 +24,11 @@ class Assignment(BaseModel):
     contract: str
     instruction: str
     attempt: int = 1
+    # What this role is reviewing. A reviewing role runs in its own session
+    # with no context but the record, so the producer's artifact travels with
+    # the assignment. Paths only -- the reviewer opens the files itself.
+    reviewing: Artifact | None = None
+    cited_paths: list[str] = Field(default_factory=list)
 
 
 class Signoff(BaseModel):
