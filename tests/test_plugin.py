@@ -82,3 +82,16 @@ def test_the_declared_mcp_api_is_the_one_the_code_uses():
         assert hasattr(Server, decorator), (
             f"installed mcp has no Server.{decorator}; charter's server code "
             f"targets the 1.x decorator API")
+
+
+def test_the_server_reports_charters_version_not_the_sdks():
+    """Server() defaults to the mcp package's version, so an inspecting client
+    was told charter was 1.29.1 -- the SDK's number, not the product's."""
+    import asyncio
+    from charter import __version__
+    from charter.mcp_server import build_server
+
+    server = build_server(ROOT)
+    opts = server.create_initialization_options()
+    assert opts.server_version == __version__, (
+        f"server reports {opts.server_version}, package is {__version__}")

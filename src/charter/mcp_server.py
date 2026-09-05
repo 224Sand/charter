@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+from charter import __version__
+
 from charter.kernel.methodology import UnknownMethodology, roster_for
 from charter.library import load_methodologies, load_roles
 from charter.loop.machine import Council
@@ -128,7 +130,9 @@ def build_server(repo: Path):
     from mcp.server import Server
 
     handlers = Handlers(repo)
-    server = Server("charter")
+    # Report charter's version, not the SDK's -- Server() defaults to the
+    # mcp package version, so an inspecting client saw the wrong product.
+    server = Server("charter", version=__version__)
 
     @server.list_tools()
     async def list_tools():
