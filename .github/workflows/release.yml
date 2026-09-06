@@ -1,0 +1,62 @@
+name: Release to PyPI
+
+# Publishes on a version tag. Trusted Publishing (OIDC) is used rather than an
+# API token: there is no long-lived secret to leak, and PyPI verifies the
+# workflow identity itself.
+#
+# One-time setup on PyPI before the first tag:
+#   pypi.org -> Publishing -> Add pending publisher
+#   project: charter · owner: 224Sand · repo: charter
+#   workflow: release.yml · environment: pypi
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests must pass before anything ships
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv sync --extra dev
+      - run: uv run pytest -q
+
+  build:
+    name: Build and validate distributions
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv build
+      # twine check catches a README that will not render on PyPI -- a broken
+      # project page is the first thing a stranger sees.
+      - run: uvx twine check dist/*
+      # The role and methodology YAML are the product. A wheel without them
+      # installs a kernel with nothing to enforce, and would install cleanly.
+      - name: Distributions must carry the role library
+        run: |
+          count=$(unzip -l dist/*.whl | grep -cE 'definitions/.*\.yaml')
+          echo "role/methodology YAML in wheel: $count"
+          test "$count" -ge 5
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist/ }
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write        # required for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist/ }
+      - uses: pypa/gh-action-pypi-publish@release/v1

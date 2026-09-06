@@ -1,16 +1,47 @@
 [project]
 name = "charter"
 version = "0.2.0"
-description = "Governed multi-role delivery for AI coding agents"
+description = "MCP server that governs an AI coding agent through a delivery lifecycle: every role must produce a machine-checkable artifact before it may sign off."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
+authors = [{ name = "Sandeep Chavan", email = "sandeep.chavan2294@gmail.com" }]
+maintainers = [{ name = "Sandeep Chavan", email = "sandeep.chavan2294@gmail.com" }]
+# Search terms people actually type when looking for this, not a taxonomy.
+keywords = [
+    "mcp", "mcp-server", "model-context-protocol", "claude-code", "claude",
+    "cursor", "codex", "ai-agents", "agentic", "code-review", "governance",
+    "sdlc", "agile", "scrum", "qa", "appsec", "developer-tools",
+    "ai-governance", "test-driven-development",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.7",
     "pyyaml>=6.0",
     "mcp>=1.2,<2",
     "typer>=0.12",
 ]
+
+[project.urls]
+Homepage = "https://github.com/224Sand/charter"
+Documentation = "https://sandscope-web.vercel.app/charter"
+Repository = "https://github.com/224Sand/charter"
+"Self-audit" = "https://github.com/224Sand/charter/tree/master/docs/self-audit"
+Issues = "https://github.com/224Sand/charter/issues"
+Author = "https://github.com/224Sand"
 
 [project.scripts]
 charter = "charter.cli:app"
@@ -24,6 +55,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/charter"]
+
+# The role and methodology YAML are the product, not incidental data. An sdist
+# without them installs a kernel with nothing to enforce.
+[tool.hatch.build.targets.sdist]
+include = ["src/charter", "tests", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

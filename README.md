@@ -26,8 +26,7 @@ is the bundled skill. Install the server without it and you get four tools nobod
 **Cursor, Codex, or manual MCP config:**
 
 ```json
-{ "mcpServers": { "charter": { "command": "uvx",
-    "args": ["--from", "git+https://github.com/224Sand/charter", "charter", "serve"] } } }
+{ "mcpServers": { "charter": { "command": "uvx", "args": ["charter", "serve"] } } }
 ```
 
 Then generate the skill yourself, since nothing else will:
@@ -110,6 +109,21 @@ Real builds outlast a session. `.charter/` holds the roster, current state, ever
 sign-off with its evidence, and an append-only transcript — human-readable and
 git-diffable. A session with no prior context resumes the build from these files alone.
 
+## Where this came from
+
+Charter is the delivery governance from [SandScope](https://github.com/224Sand/sandscope)
+([live](https://sandscope-web.vercel.app)), an agent that answers incident questions over a
+fixed corpus and refuses when the evidence will not support an answer. That build ran under
+eleven named delivery roles and one rule — a role may not sign off its own work — and the
+rule turned out to be worth more than the project it was written for.
+
+The record of that build is public: the [council retrospective](https://sandscope-web.vercel.app/council)
+replays the repository's real defects and decisions through its roles, and
+[the Charter page](https://sandscope-web.vercel.app/charter) documents this tool.
+
+Built by [Sandeep Chavan](https://github.com/224Sand) · [LinkedIn](https://www.linkedin.com/in/sandeep-c04)
+
 ## License
 
-MIT.
+MIT. Fork it, add roles, point it at your own process — the role library is plain YAML and
+the kernel enforces whatever it declares.

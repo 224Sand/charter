@@ -69,7 +69,11 @@ def test_the_mcp_dependency_is_bounded_to_the_api_charter_targets():
     interpreter that happened to have 1.x installed."""
     import re
     pyproject = (ROOT / "pyproject.toml").read_text()
-    spec = re.search(r'"mcp([^"]*)"', pyproject).group(1)
+    # Scope to the dependencies array. Matching any "mcp..." string in the file
+    # picked up the "mcp" keyword once keywords were added, and passed on a
+    # value that was never the dependency.
+    deps = re.search(r"^dependencies = \[(.*?)^\]", pyproject, re.S | re.M).group(1)
+    spec = re.search(r'"mcp([^"]*)"', deps).group(1)
     assert "<" in spec, f"mcp dependency {spec!r} has no upper bound"
 
 
